@@ -1,4 +1,6 @@
-// Cola de audio secuencial para el Bingo 75.
+// Motor de audio profesional para Bingo 75.
+// Maneja una cola secuencial y asegura que no se pierdan audios por re-renders.
+
 import { letterOf } from "./bingo";
 
 const PAUSE_MS = 450;
@@ -6,8 +8,9 @@ const PAUSE_MS = 450;
 let enabled = true;
 let unlocked = false;
 let queue: string[] = [];
-let playing = false;
-let current: HTMLAudioElement | null = null;
+let isProcessing = false;
+let currentAudio: HTMLAudioElement | null = null;
+let audioContext: AudioContext | null = null;
 
 export function setAudioEnabled(value: boolean) {
   enabled = value;
@@ -18,105 +21,141 @@ export function isAudioEnabled() {
   return enabled;
 }
 
-/** Desbloquea el audio para navegadores móviles y desktop. */
+/**
+ * Inicializa el contexto de audio global.
+ * Debe llamarse tras una interacción del usuario.
+ */
 export async function unlockAudio() {
   if (typeof window === "undefined") return;
 
-  const ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
-  if (ctx) {
-    const audioCtx = new ctx();
-    if (audioCtx.state === 'suspended') {
-      await audioCtx.resume();
-    }
+  if (!audioContext) {
+    const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (Ctx) audioContext = new Ctx();
   }
 
+  if (audioContext?.state === 'suspended') {
+    await audioContext.resume();
+  }
+
+  // Pequeño sonido silencioso para activar el motor en iOS/Chrome
   try {
-    const el = new Audio();
-    el.muted = true;
-    el.src = "data:audio/wav;base64,UklGRigAAABXQVZFAmZtdCAQAAAAAQABAIAAABkAAcwAAAgAgAB0YW5hAAAA"; // 1ms silent wav
-    await el.play().catch(() => undefined);
-    el.pause();
-  } catch { /* ignorado */ }
+    const probe = new Audio();
+    probe.muted = true;
+    probe.src = "data:audio/wav;base64,UklGRigAAABXQVZFAmZtdCAQAAAAAQABAIAAABkAAcwAAAgAgAB0YW5hAAAA";
+    await probe.play();
+  } catch (e) {
+    console.warn("[Audio] Re-activación fallida:", e);
+  }
 
   unlocked = true;
-  console.log("[Audio] Desbloqueado correctamente");
+  console.log("[Audio] Motor listo y desbloqueado");
 }
 
-function play(src: string): Promise<void> {
+function playFile(src: string): Promise<void> {
   return new Promise((resolve) => {
-    if (typeof window === "undefined") return resolve();
-    const el = new Audio(src);
-    current = el;
-    const done = () => {
-      el.onended = null;
-      el.onerror = null;
-      if (current === el) current = null;
+    if (typeof window === "undefined" || !enabled) return resolve();
+
+    // Si el contexto está dormido, intentamos despertarlo antes de cada play
+    if (audioContext?.state === 'suspended') {
+      audioContext.resume().catch(() => undefined);
+    }
+
+    const audio = new Audio(src);
+    currentAudio = audio;
+
+    const cleanup = () => {
+      audio.onended = null;
+      audio.onerror = null;
+      if (currentAudio === audio) currentAudio = null;
       resolve();
     };
-    el.onended = done;
-    el.onerror = done;
-    el.play().catch(done);
+
+    audio.onended = cleanup;
+    audio.onerror = (e) => {
+      console.warn(`[Audio] Error cargando ${src}:`, e);
+      cleanup();
+    };
+
+    audio.play().catch((err) => {
+      console.warn(`[Audio] Play bloqueado para ${src}:`, err);
+      cleanup();
+    });
   });
 }
 
-async function runQueue() {
-  if (playing) return;
-  playing = true;
-  while (queue.length && enabled) {
-    const src = queue.shift()!;
-    if (src === "__pause__") {
-      await new Promise((r) => setTimeout(r, PAUSE_MS));
-    } else {
-      await play(src);
+/** Procesa la cola de audios de forma atómica. */
+async function processQueue() {
+  if (isProcessing) return;
+  isProcessing = true;
+
+  try {
+    while (queue.length > 0 && enabled) {
+      const task = queue.shift()!;
+
+      if (task === "__pause__") {
+        await new Promise((r) => setTimeout(r, PAUSE_MS));
+      } else {
+        await playFile(task);
+      }
+    }
+  } finally {
+    isProcessing = false;
+    // Si llegaron nuevos elementos mientras terminábamos, relanzamos
+    if (queue.length > 0 && enabled) {
+      void processQueue();
     }
   }
-  playing = false;
 }
 
 export function stopAudio() {
   queue = [];
-  if (current) {
-    current.pause();
-    current = null;
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio = null;
   }
 }
 
 /** Canta la bola: Letra + Pausa + Número. */
 export function announceBall(ball: number) {
   if (!enabled) return;
-  stopAudio();
-  const num = String(ball); // Archivos son 1.mp3, 2.mp3...
-  // Intentamos cargar la letra. Si no existe, el sistema de play() maneja el error y sigue.
-  queue = [`/audio/${letterOf(ball)}.mp3`, "__pause__", `/audio/${num}.mp3`];
-  void runQueue();
-}
 
-/** Sonidos especiales del juego */
+  // Limpiamos lo que se esté cantando para priorizar la nueva bola
+  stopAudio();
+
+  const num = String(ball);
+  queue = [
+    `/audio/${letterOf(ball)}.mp3`,
+    "__pause__",
+    `/audio/${num}.mp3`
+  ];
+
+  void processQueue();
+}
 
 export function playIntro() {
   if (!enabled) return;
   stopAudio();
   queue = ["/audio/intro.mp3"];
-  void runQueue();
+  void processQueue();
 }
 
 export function playBingoPressed() {
   if (!enabled) return;
   stopAudio();
   queue = ["/audio/fin de la partida.mp3"];
-  void runQueue();
+  void processQueue();
 }
 
 export function playWinnerConfirmed() {
   if (!enabled) return;
   stopAudio();
   queue = ["/audio/ganador.mp3"];
-  void runQueue();
+  void processQueue();
 }
 
 export function playAllBallsDrawn() {
   if (!enabled) return;
   stopAudio();
   queue = ["/audio/se han cantado todas las bolas.mp3"];
-  void runQueue();
+  void processQueue();
 }

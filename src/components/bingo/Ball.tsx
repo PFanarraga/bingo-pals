@@ -23,7 +23,7 @@ export function Ball({ number, size = "md", variant = "drawn", showLetter = true
         "ball transition-all duration-300",
         sizes[size],
         variant === "drawn" && `ball-${letter}`,
-        variant === "current" && `ball-${letter} ring-4 ring-white ring-offset-2 ring-offset-background`,
+        variant === "current" && `ball-${letter} ball-current ring-4 ring-white ring-offset-2 ring-offset-background`,
         variant === "idle" && "ball-idle",
       )}
       aria-label={`${letterOf(number)} ${number}`}
