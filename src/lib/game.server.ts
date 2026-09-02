@@ -64,12 +64,14 @@ export type GameRow = {
   current_ball: number | null;
   prize: number;
   game_number: number;
+  winning_pattern: string;
+  ball_interval: number;
 };
 
 export async function getGame(gameId: string): Promise<GameRow> {
   const { data } = await db
     .from("games")
-    .select("id, room_id, status, drawn_balls, current_ball, prize, game_number")
+    .select("id, room_id, status, drawn_balls, current_ball, prize, game_number, winning_pattern, ball_interval")
     .eq("id", gameId)
     .maybeSingle();
   if (!data) throw new Error("Partida no encontrada");

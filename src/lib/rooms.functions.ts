@@ -29,8 +29,10 @@ export const createRoom = createServerFn({ method: "POST" })
     const { db, uniqueRoomCode } = await import("@/lib/game.server");
 
     // 1. Validar código de creación
-    const MASTER_CODE = getEnv('MASTER_CREATION_CODE') || 'PMFF2309'; // Fallback al tuyo si falla la detección
-    let isMaster = data.creationCode === MASTER_CODE;
+    const inputCode = data.creationCode.trim().toUpperCase();
+    const MASTER_CODE = (getEnv('MASTER_CREATION_CODE') || 'PMFF2309').trim().toUpperCase();
+
+    let isMaster = inputCode === MASTER_CODE;
     let isAuthorizedAdmin = isMaster;
 
     if (!isMaster) {
@@ -38,7 +40,7 @@ export const createRoom = createServerFn({ method: "POST" })
       const { data: codeRow, error: codeError } = await db
         .from("room_creation_codes")
         .select("*")
-        .eq("code", data.creationCode)
+        .eq("code", inputCode)
         .eq("is_active", true)
         .maybeSingle();
 
@@ -435,13 +437,17 @@ export const generateCreationCode = createServerFn({ method: "POST" })
       throw new Error("No tienes autorización para generar códigos");
     }
 
-    // Generar código de 4 dígitos aleatorio
-    const newCode = Math.floor(1000 + Math.random() * 9000).toString();
+    // Generar código de 4 dígitos alfanumérico aleatorio
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let newCode = "";
+    for (let i = 0; i < 4; i++) {
+      newCode += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
 
     let expiresAt = null;
-    if (data.days) {
+    if (data.days !== null) {
       expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + data.days);
+      expiresAt.setHours(expiresAt.getHours() + (data.days * 24));
     }
 
     const { data: inserted, error } = await db
@@ -454,8 +460,36 @@ export const generateCreationCode = createServerFn({ method: "POST" })
       .select("code, expires_at, use_limit")
       .single();
 
-    if (error) throw new Error("Error al generar el código");
+    if (error) {
+      console.error("[Codes] Error insertando código:", error);
+      throw new Error("Error al generar el código en la base de datos");
+    }
     return inserted;
+  });
+
+/** Obtiene los códigos de creación activos para el administrador. */
+export const getActiveCreationCodes = createServerFn({ method: "GET" })
+  .inputValidator((input: { playerId: string; token: string }) => authSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { db, requirePlayer } = await import("@/lib/game.server");
+    const player = await requirePlayer(data.playerId, data.token);
+
+    if (!player.is_authorized_admin) {
+      throw new Error("No autorizado");
+    }
+
+    const now = new Date().toISOString();
+    const { data: codes, error } = await db
+      .from("room_creation_codes")
+      .select("*")
+      .eq("is_active", true)
+      .or(`expires_at.is.null,expires_at.gt.${now}`)
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error("Error al obtener códigos");
+
+    // Filtrar los que ya superaron el límite de uso
+    return (codes ?? []).filter(c => c.use_limit === null || c.use_count < c.use_limit);
   });
 
 /** Nueva partida en la misma sala: bolas y cartones se reinician. */

@@ -163,8 +163,8 @@ function Home() {
             value={creationCode}
             maxLength={20}
             placeholder="Introduce tu código"
-            className="text-center font-mono tracking-widest"
-            onChange={(e) => setCreationCode(e.target.value)}
+            className="text-center font-mono tracking-widest uppercase"
+            onChange={(e) => setCreationCode(e.target.value.toUpperCase())}
           />
         </div>
         <Button variant="outline" className="h-12 w-full" disabled={busy} onClick={create}>

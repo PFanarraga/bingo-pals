@@ -8,16 +8,17 @@ import { BingoCardView } from "@/components/bingo/BingoCardView";
 import { CardCarousel } from "@/components/bingo/CardCarousel";
 import { useGameState } from "@/hooks/useGameState";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
-import { assignCards, rerollCard } from "@/lib/cards.functions";
-import { startGame, toggleReady, updateBallInterval, updateWinningPattern, generateCreationCode } from "@/lib/rooms.functions";
+import { startGame, toggleReady, updateBallInterval, updateWinningPattern, generateCreationCode, getActiveCreationCodes } from "@/lib/rooms.functions";
 import { sessionForRoom, type PlayerSession } from "@/lib/session";
 import { FREE_INDEX, PATTERNS, type WinningPattern } from "@/lib/bingo";
-import { Copy, RefreshCw, Share2, Timer, Target, KeyRound, CheckCircle } from "lucide-react";
+import { Copy, RefreshCw, Share2, Timer, Target, KeyRound, CheckCircle, Clock, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { playIntro, unlockAudio } from "@/lib/audio";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
 
 export const Route = createFileRoute("/sala/$code")({
   head: () => ({
@@ -43,9 +44,22 @@ const freeMarks = (() => {
 function CreationCodeModal({ playerId, token }: { playerId: string; token: string }) {
   const [open, setOpen] = useState(false);
   const [days, setDays] = useState<string>("0");
+  const [customDays, setCustomDays] = useState<string>("1");
   const [limit, setLimit] = useState<string>("0");
+  const [customLimit, setCustomLimit] = useState<string>("1");
   const [generated, setGenerated] = useState<{ code: string; expires_at: string | null; use_limit: number | null } | null>(null);
+  const [activeCodes, setActiveCodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [view, setView] = useState<"form" | "result" | "list">("form");
+
+  const loadActive = async () => {
+    try {
+      const res = await getActiveCreationCodes({ data: { playerId, token } });
+      setActiveCodes(res);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -54,11 +68,13 @@ function CreationCodeModal({ playerId, token }: { playerId: string; token: strin
         data: {
           playerId,
           token,
-          days: days === "0" ? null : Number(days),
-          limit: limit === "0" ? null : Number(limit)
+          days: days === "custom" ? Number(customDays) : (days === "0" ? null : Number(days)),
+          limit: limit === "custom" ? Number(customLimit) : (limit === "0" ? null : Number(limit))
         }
       });
       setGenerated(res);
+      setView("result");
+      void loadActive();
     } catch (e) {
       toast.error("Error al generar código");
     } finally {
@@ -70,10 +86,11 @@ function CreationCodeModal({ playerId, token }: { playerId: string; token: strin
     setGenerated(null);
     setDays("0");
     setLimit("0");
+    setView("form");
   };
 
   return (
-    <Dialog open={open} onOpenChange={(val) => { setOpen(val); if (!val) reset(); }}>
+    <Dialog open={open} onOpenChange={(val) => { setOpen(val); if (!val) reset(); if (val) void loadActive(); }}>
       <DialogTrigger asChild>
         <Button variant="outline" className="w-full border-primary/50 text-primary hover:bg-primary/10">
           <KeyRound className="mr-2 h-4 w-4" />
@@ -81,14 +98,17 @@ function CreationCodeModal({ playerId, token }: { playerId: string; token: strin
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="font-display text-2xl">Generar Código de Acceso</DialogTitle>
+        <DialogHeader className="flex flex-row items-center justify-between">
+          <DialogTitle className="font-display text-2xl">Gestión de Códigos</DialogTitle>
+          <Button variant="ghost" size="sm" onClick={() => setView(view === "list" ? "form" : "list")}>
+            {view === "list" ? <Clock className="h-4 w-4" /> : <History className="h-4 w-4" />}
+          </Button>
         </DialogHeader>
 
-        {!generated ? (
+        {view === "form" && (
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Vencimiento</Label>
+              <Label>Vencimiento (Días)</Label>
               <Select value={days} onValueChange={setDays}>
                 <SelectTrigger>
                   <SelectValue />
@@ -98,12 +118,22 @@ function CreationCodeModal({ playerId, token }: { playerId: string; token: strin
                   <SelectItem value="1">1 día</SelectItem>
                   <SelectItem value="7">7 días</SelectItem>
                   <SelectItem value="30">30 días</SelectItem>
+                  <SelectItem value="custom">Personalizado...</SelectItem>
                 </SelectContent>
               </Select>
+              {days === "custom" && (
+                <Input
+                  type="number"
+                  min="1"
+                  value={customDays}
+                  onChange={e => setCustomDays(e.target.value)}
+                  placeholder="Ej: 100"
+                />
+              )}
             </div>
 
             <div className="space-y-2">
-              <Label>Límite de uso</Label>
+              <Label>Límite de uso (Partidas)</Label>
               <Select value={limit} onValueChange={setLimit}>
                 <SelectTrigger>
                   <SelectValue />
@@ -113,20 +143,34 @@ function CreationCodeModal({ playerId, token }: { playerId: string; token: strin
                   <SelectItem value="1">1 uso</SelectItem>
                   <SelectItem value="5">5 usos</SelectItem>
                   <SelectItem value="10">10 usos</SelectItem>
+                  <SelectItem value="custom">Personalizado...</SelectItem>
                 </SelectContent>
               </Select>
+              {limit === "custom" && (
+                <Input
+                  type="number"
+                  min="1"
+                  value={customLimit}
+                  onChange={e => setCustomLimit(e.target.value)}
+                  placeholder="Ej: 3"
+                />
+              )}
             </div>
 
             <div className="flex gap-2 pt-2">
               <Button className="flex-1" onClick={handleGenerate} disabled={loading}>
-                {loading ? "GENERANDO..." : "GENERAR"}
-              </Button>
-              <Button variant="ghost" className="flex-1" onClick={() => setOpen(false)}>
-                CANCELAR
+                {loading ? "GENERANDO..." : "GENERAR CÓDIGO"}
               </Button>
             </div>
+            {activeCodes.length > 0 && (
+              <Button variant="link" className="w-full text-xs" onClick={() => setView("list")}>
+                Ver {activeCodes.length} códigos activos
+              </Button>
+            )}
           </div>
-        ) : (
+        )}
+
+        {view === "result" && generated && (
           <div className="space-y-6 py-6 text-center">
             <div className="flex flex-col items-center gap-2">
               <CheckCircle className="h-12 w-12 text-green-500" />
@@ -134,7 +178,7 @@ function CreationCodeModal({ playerId, token }: { playerId: string; token: strin
             </div>
 
             <div className="space-y-1">
-              <p className="text-4xl font-mono font-bold tracking-[0.5em] text-primary">{generated.code}</p>
+              <p className="text-4xl font-mono font-bold tracking-[0.5em] text-primary uppercase">{generated.code}</p>
               <p className="text-xs text-muted-foreground uppercase tracking-widest">
                 {generated.expires_at ? `Vence: ${new Date(generated.expires_at).toLocaleDateString()}` : "Sin vencimiento"}
                 {" · "}
@@ -142,14 +186,52 @@ function CreationCodeModal({ playerId, token }: { playerId: string; token: strin
               </p>
             </div>
 
-            <Button
-              className="w-full h-12 text-lg"
-              onClick={async () => {
-                await navigator.clipboard.writeText(generated.code);
-                toast.success("Código copiado");
-              }}
-            >
-              COPIAR CÓDIGO
+            <div className="flex gap-2">
+              <Button
+                className="flex-1 h-12 text-lg"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(generated.code);
+                  toast.success("Código copiado");
+                }}
+              >
+                COPIAR
+              </Button>
+              <Button variant="outline" className="h-12" onClick={() => setView("form")}>
+                NUEVO
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {view === "list" && (
+          <div className="space-y-3 py-4 max-h-[400px] overflow-y-auto pr-2">
+            {activeCodes.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground italic">No hay códigos activos</p>
+            ) : (
+              activeCodes.map(c => (
+                <div key={c.id} className="panel p-3 flex items-center justify-between gap-3 border-white/5">
+                  <div className="min-w-0">
+                    <p className="font-mono font-bold text-primary text-lg uppercase tracking-widest">{c.code}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase truncate">
+                      {c.expires_at ? (
+                        <>Vence {formatDistanceToNow(new Date(c.expires_at), { addSuffix: true, locale: es })}</>
+                      ) : "Sin vencimiento"}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground uppercase">
+                      {c.use_limit ? `Usos: ${c.use_count} / ${c.use_limit}` : "Usos: Ilimitados"}
+                    </p>
+                  </div>
+                  <Button size="sm" variant="secondary" onClick={() => {
+                    navigator.clipboard.writeText(c.code);
+                    toast.success("Copiado");
+                  }}>
+                    COPIAR
+                  </Button>
+                </div>
+              ))
+            )}
+            <Button variant="outline" className="w-full mt-4" onClick={() => setView("form")}>
+              VOLVER ATRÁS
             </Button>
           </div>
         )}
