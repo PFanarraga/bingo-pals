@@ -328,6 +328,34 @@ export const updateBallInterval = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Actualiza el patrón de victoria. */
+export const updateWinningPattern = createServerFn({ method: "POST" })
+  .inputValidator((input: { playerId: string; token: string; pattern: string }) =>
+    authSchema.extend({ pattern: z.string() }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { db, requireHost } = await import("@/lib/game.server");
+    const host = await requireHost(data.playerId, data.token);
+
+    const { data: game } = await db
+      .from("games")
+      .select("id")
+      .eq("room_id", host.room_id)
+      .order("game_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!game) throw new Error("No hay partida");
+
+    const { error } = await db
+      .from("games")
+      .update({ winning_pattern: data.pattern })
+      .eq("id", game.id);
+
+    if (error) throw new Error("No se pudo actualizar el modo de juego");
+    return { ok: true };
+  });
+
 /** Nueva partida en la misma sala: bolas y cartones se reinician. */
 export const newGame = createServerFn({ method: "POST" })
   .inputValidator((input: { playerId: string; token: string }) => authSchema.parse(input))

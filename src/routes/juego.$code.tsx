@@ -13,9 +13,9 @@ import { useHeartbeat } from "@/hooks/useHeartbeat";
 import { useMarks } from "@/hooks/useMarks";
 import { claimBingo } from "@/lib/claims.functions";
 import { sessionForRoom, type PlayerSession } from "@/lib/session";
-import { hasMarkedLine } from "@/lib/bingo";
+import { isPatternAchieved, PATTERNS, type WinningPattern } from "@/lib/bingo";
 import { announceBall, isAudioEnabled, setAudioEnabled, unlockAudio, playBingoPressed, playWinnerConfirmed, playAllBallsDrawn } from "@/lib/audio";
-import { Volume2, VolumeX, Pause, Play, CheckCircle2, Loader2 } from "lucide-react";
+import { Volume2, VolumeX, Pause, Play, CheckCircle2, Loader2, Target } from "lucide-react";
 import { autoDrawBall } from "@/lib/balls.functions";
 import { setGameStatus, toggleReady, requestPause, handlePauseRequest } from "@/lib/rooms.functions";
 import { cn } from "@/lib/utils";
@@ -143,7 +143,8 @@ function GameScreen() {
   const drawn = state.game?.drawn_balls ?? [];
   const drawnSet = new Set(drawn);
   const current = state.cards[activeCard];
-  const canCallBingo = Boolean(current) && hasMarkedLine(getMarks(current!.id));
+  const currentPattern = (state.game?.winning_pattern || "LINE") as WinningPattern;
+  const canCallBingo = Boolean(current) && isPatternAchieved(getMarks(current!.id), currentPattern);
 
   const handleToggleReady = async () => {
     if (!session) return;
@@ -287,6 +288,13 @@ function GameScreen() {
           <div className="space-y-0.5">
             <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Jugador</p>
             <p className="font-display text-sm truncate max-w-[120px]">{session?.name.toUpperCase()}</p>
+          </div>
+          <div className="flex flex-col items-center">
+            <p className="text-[9px] text-amber-500 uppercase font-bold tracking-tighter leading-none mb-1">Objetivo</p>
+            <div className="flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
+              <Target className="h-3 w-3 text-amber-500" />
+              <span className="font-display text-[11px] text-amber-500">{PATTERNS[currentPattern]?.label.toUpperCase()}</span>
+            </div>
           </div>
           {state.game && state.game.prize > 0 && (
             <div className="text-right space-y-0.5">

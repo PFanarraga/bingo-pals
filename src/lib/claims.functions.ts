@@ -26,9 +26,9 @@ export const claimBingo = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { db, requirePlayer, getGame } = await import("@/lib/game.server");
-    const { hasLineWithDrawn } = await import("@/lib/bingo");
+    const { checkWinServer, WinningPattern } = await import("@/lib/bingo");
     const player = await requirePlayer(data.playerId, data.token);
-    const game = await getGame(data.gameId);
+    const game = await getGame(data.gameId) as any; // Cast for custom props
 
     if (game.room_id !== player.room_id) throw new Error("La partida no pertenece a tu sala");
     if (game.status !== "PLAYING" && game.status !== "PAUSED")
@@ -40,11 +40,10 @@ export const claimBingo = createServerFn({ method: "POST" })
       .eq("id", data.cardId)
       .maybeSingle();
     if (!card) throw new Error("Cartón no encontrado");
-    if (card.player_id !== player.id) throw new Error("El cartón no es tuyo");
-    if (card.game_id !== game.id) throw new Error("El cartón no pertenece a esta partida");
 
     const drawn = game.drawn_balls ?? [];
-    const valid = hasLineWithDrawn(card.numbers as number[], drawn);
+    const pattern = (game.winning_pattern || "LINE") as any;
+    const valid = checkWinServer(card.numbers as number[], drawn, pattern);
 
     const { data: claim, error } = await db
       .from("bingo_claims")
@@ -59,14 +58,20 @@ export const claimBingo = createServerFn({ method: "POST" })
       })
       .select("id, status")
       .single();
+
     if (error || !claim) throw new Error("No se pudo registrar el bingo");
+
+    // PAUSA AUTOMÁTICA: Si el bingo parece válido, pausamos el juego para que el anfitrión verifique
+    if (valid && game.status === "PLAYING") {
+      await db.from("games").update({ status: "PAUSED" }).eq("id", game.id);
+      await db.from("rooms").update({ status: "PAUSED" }).eq("id", game.room_id);
+    }
 
     return { status: claim.status as "VALID" | "INVALID", claimId: claim.id as string };
   });
 
 /**
- * El anfitrión verifica los bingos. Todos los bingos válidos cuentan como
- * ganadores y el premio se divide entre ellos. La partida termina.
+ * El anfitrión verifica los bingos. El sistema valida automáticamente basándose en el patrón.
  */
 export const verifyBingos = createServerFn({ method: "POST" })
   .inputValidator((input: { playerId: string; token: string; gameId: string }) =>
@@ -74,9 +79,10 @@ export const verifyBingos = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { db, requireHost, getGame } = await import("@/lib/game.server");
-    const { hasLineWithDrawn } = await import("@/lib/bingo");
+    const { checkWinServer } = await import("@/lib/bingo");
     const host = await requireHost(data.playerId, data.token);
-    const game = await getGame(data.gameId);
+    const game = await getGame(data.gameId) as any;
+
     if (game.room_id !== host.room_id) throw new Error("La partida no pertenece a tu sala");
     if (game.status === "FINISHED") throw new Error("La partida ya terminó");
 
@@ -84,9 +90,10 @@ export const verifyBingos = createServerFn({ method: "POST" })
       .from("bingo_claims")
       .select("id, player_id, card_id, status")
       .eq("game_id", game.id)
-      .in("status", ["VALID", "CONFIRMED"]);
+      .eq("status", "VALID");
 
     const drawn = game.drawn_balls ?? [];
+    const pattern = (game.winning_pattern || "LINE") as any;
     const winners: { player_id: string; card_id: string }[] = [];
     const seen = new Set<string>();
 
@@ -98,14 +105,22 @@ export const verifyBingos = createServerFn({ method: "POST" })
         .eq("id", claim.card_id)
         .maybeSingle();
       if (!card) continue;
-      // Revalidación definitiva en el servidor.
-      if (!hasLineWithDrawn(card.numbers as number[], drawn)) continue;
+
+      if (!checkWinServer(card.numbers as number[], drawn, pattern)) {
+        // Marcar como inválido si no cumple el patrón realmente
+        await db.from("bingo_claims").update({ status: "INVALID" }).eq("id", claim.id);
+        continue;
+      }
+
       seen.add(claim.card_id);
       winners.push({ player_id: claim.player_id, card_id: claim.card_id });
     }
 
     if (winners.length === 0) {
-      return { winners: 0, message: "No hay bingos válidos" };
+      // Si no hubo ganadores reales, REANUDAMOS el juego automáticamente
+      await db.from("games").update({ status: "PLAYING", last_ball_at: new Date().toISOString() }).eq("id", game.id);
+      await db.from("rooms").update({ status: "PLAYING" }).eq("id", game.room_id);
+      return { winners: 0, message: "No hay bingos válidos. El juego continúa." };
     }
 
     const share = Number((Number(game.prize) / winners.length).toFixed(2));

@@ -31,6 +31,17 @@ export const autoDrawBall = createServerFn({ method: "POST" })
 
     if (!game || game.status !== "PLAYING") return { ok: false, reason: "NOT_PLAYING" };
 
+    // 1.1 Verificar si hay bingos pendientes de validar
+    const { count: pendingClaims } = await db
+      .from("bingo_claims")
+      .select("id", { count: "exact", head: true })
+      .eq("game_id", data.gameId)
+      .eq("status", "VALID");
+
+    if ((pendingClaims ?? 0) > 0) {
+      return { ok: false, reason: "PENDING_CLAIMS" };
+    }
+
     const drawn = game.drawn_balls ?? [];
     if (drawn.length >= 75) return { ok: false, reason: "COMPLETED" };
 

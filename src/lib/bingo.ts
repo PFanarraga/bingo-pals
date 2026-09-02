@@ -6,6 +6,16 @@ export type Letter = (typeof LETTERS)[number];
 export const FREE_INDEX = 12;
 export const MAX_CARDS = 3;
 
+export type WinningPattern = "LINE" | "FULL" | "X" | "CROSS" | "CORNERS";
+
+export const PATTERNS: Record<WinningPattern, { label: string; description: string }> = {
+  LINE: { label: "Línea", description: "Cualquier fila, columna o diagonal" },
+  FULL: { label: "Cartón Lleno", description: "Todos los números del cartón" },
+  X: { label: "Letra X", description: "Las dos diagonales principales" },
+  CROSS: { label: "Cruz", description: "Fila y columna central" },
+  CORNERS: { label: "4 Esquinas", description: "Solo las esquinas del cartón" },
+};
+
 /** Letra que corresponde a una bola (1-75). */
 export function letterOf(n: number): Letter {
   const i = Math.floor((n - 1) / 15);
@@ -48,21 +58,6 @@ export function generateCard(): number[] {
   return card;
 }
 
-export function isValidCard(numbers: unknown): numbers is number[] {
-  if (!Array.isArray(numbers) || numbers.length !== 25) return false;
-  for (let i = 0; i < 25; i++) {
-    const n = numbers[i];
-    if (typeof n !== "number") return false;
-    if (i === FREE_INDEX) {
-      if (n !== 0) return false;
-      continue;
-    }
-    const col = i % 5;
-    if (n < col * 15 + 1 || n > col * 15 + 15) return false;
-  }
-  return true;
-}
-
 /** Todas las líneas posibles (filas, columnas y diagonales) como índices del cartón. */
 export const LINES: number[][] = (() => {
   const lines: number[][] = [];
@@ -73,13 +68,35 @@ export const LINES: number[][] = (() => {
   return lines;
 })();
 
-/** ¿Hay línea completa según las casillas marcadas manualmente? (uso en cliente) */
-export function hasMarkedLine(marked: boolean[]): boolean {
-  return LINES.some((line) => line.every((i) => i === FREE_INDEX || marked[i] === true));
+/** Índices requeridos para otros patrones */
+export const PATTERN_INDICES: Record<Exclude<WinningPattern, "LINE">, number[]> = {
+  FULL: Array.from({ length: 25 }, (_, i) => i),
+  X: [0, 6, 12, 18, 24, 4, 8, 16, 20],
+  CROSS: [2, 7, 12, 17, 22, 10, 11, 13, 14],
+  CORNERS: [0, 4, 20, 24],
+};
+
+/** ¿Se cumple el patrón según las casillas marcadas manualmente? (uso en cliente) */
+export function isPatternAchieved(marked: boolean[], pattern: WinningPattern = "LINE"): boolean {
+  if (pattern === "LINE") {
+    return LINES.some((line) => line.every((i) => i === FREE_INDEX || marked[i] === true));
+  }
+  const required = PATTERN_INDICES[pattern];
+  return required.every((i) => i === FREE_INDEX || marked[i] === true);
 }
 
-/** ¿El cartón realmente tiene línea con las bolas que salieron? (autoridad del servidor) */
-export function hasLineWithDrawn(numbers: number[], drawn: number[]): boolean {
+/** ¿El cartón realmente cumple el patrón con las bolas que salieron? (autoridad del servidor) */
+export function checkWinServer(numbers: number[], drawn: number[], pattern: WinningPattern = "LINE"): boolean {
   const set = new Set(drawn);
-  return LINES.some((line) => line.every((i) => i === FREE_INDEX || set.has(numbers[i]!)));
+  const isMarked = (i: number) => i === FREE_INDEX || set.has(numbers[i]!);
+
+  if (pattern === "LINE") {
+    return LINES.some((line) => line.every(isMarked));
+  }
+  const required = PATTERN_INDICES[pattern];
+  return required.every(isMarked);
 }
+
+// Deprecated aliases for backward compatibility if needed temporarily
+export function hasMarkedLine(marked: boolean[]): boolean { return isPatternAchieved(marked, "LINE"); }
+export function hasLineWithDrawn(numbers: number[], drawn: number[]): boolean { return checkWinServer(numbers, drawn, "LINE"); }

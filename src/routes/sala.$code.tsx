@@ -9,13 +9,14 @@ import { CardCarousel } from "@/components/bingo/CardCarousel";
 import { useGameState } from "@/hooks/useGameState";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
 import { assignCards, rerollCard } from "@/lib/cards.functions";
-import { startGame, toggleReady, updateBallInterval } from "@/lib/rooms.functions";
+import { startGame, toggleReady, updateBallInterval, updateWinningPattern } from "@/lib/rooms.functions";
 import { sessionForRoom, type PlayerSession } from "@/lib/session";
-import { FREE_INDEX } from "@/lib/bingo";
-import { Copy, RefreshCw, Share2, Timer } from "lucide-react";
+import { FREE_INDEX, PATTERNS, type WinningPattern } from "@/lib/bingo";
+import { Copy, RefreshCw, Share2, Timer, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { playIntro, unlockAudio } from "@/lib/audio";
 import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/sala/$code")({
   head: () => ({
@@ -44,6 +45,7 @@ function WaitingRoom() {
   const [session, setSession] = useState<PlayerSession | null>(null);
   const [prize, setPrize] = useState("0");
   const [busy, setBusy] = useState(false);
+  const [localInterval, setLocalInterval] = useState<number | null>(null);
 
   useEffect(() => {
     const found = sessionForRoom(code);
@@ -55,6 +57,14 @@ function WaitingRoom() {
   }, [code, navigate]);
 
   const state = useGameState(code, session?.playerId);
+
+  // Sincronizar intervalo local con la DB si no estamos arrastrando
+  useEffect(() => {
+    if (state.game?.ball_interval !== undefined && localInterval === null) {
+      setLocalInterval(state.game.ball_interval);
+    }
+  }, [state.game?.ball_interval, localInterval]);
+
   useHeartbeat(session?.playerId, session?.token);
   const isHost = Boolean(session?.isHost);
 
@@ -250,6 +260,40 @@ function WaitingRoom() {
           </div>
 
           <div className="space-y-3 pt-2">
+            {/* Selector de Modo de Juego */}
+            <div className="space-y-1.5 rounded-lg border bg-secondary/20 p-3">
+              <Label className="flex items-center gap-2 mb-2">
+                <Target className="h-4 w-4 text-primary" />
+                Modo de victoria
+              </Label>
+              <Select
+                value={state.game?.winning_pattern || "LINE"}
+                onValueChange={async (val) => {
+                  if (!session) return;
+                  try {
+                    await updateWinningPattern({
+                      data: { playerId: session.playerId, token: session.token, pattern: val }
+                    });
+                  } catch (e) {
+                    toast.error("No se pudo cambiar el modo de juego");
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full bg-background/50 border-white/10">
+                  <SelectValue placeholder="Elige un modo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PATTERNS).map(([key, info]) => (
+                    <SelectItem key={key} value={key}>
+                      <span className="font-bold">{info.label}</span>
+                      <p className="text-[10px] opacity-60 leading-none">{info.description}</p>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Selector de Velocidad Optimizado */}
             <div className="space-y-2.5 rounded-lg border bg-secondary/20 p-3">
               <div className="flex items-center justify-between">
                 <Label className="flex items-center gap-2">
@@ -257,15 +301,16 @@ function WaitingRoom() {
                   Velocidad de juego
                 </Label>
                 <span className="font-display text-primary text-xl">
-                  {state.game?.ball_interval ?? 10}s
+                  {localInterval ?? state.game?.ball_interval ?? 10}s
                 </span>
               </div>
               <Slider
-                value={[state.game?.ball_interval ?? 10]}
+                value={[localInterval ?? state.game?.ball_interval ?? 10]}
                 min={1}
                 max={10}
                 step={1}
-                onValueChange={async (vals) => {
+                onValueChange={(vals) => setLocalInterval(vals[0]!)}
+                onValueCommit={async (vals) => {
                   if (!session || !vals[0]) return;
                   try {
                     await updateBallInterval({
@@ -276,12 +321,12 @@ function WaitingRoom() {
                       }
                     });
                   } catch (e) {
-                    toast.error("No se pudo cambiar la velocidad");
+                    toast.error("No se pudo guardar la velocidad");
                   }
                 }}
               />
               <p className="text-[10px] text-muted-foreground text-center uppercase tracking-tighter">
-                Segundos entre cada bolilla
+                Arrastra y suelta para ajustar
               </p>
             </div>
 

@@ -1,25 +1,40 @@
-# Configuración de Velocidad (1-10s)
+# Patrones de Victoria, Verificación Automática y UI Fluida
 
-He añadido un control de velocidad deslizante en la sala de espera para que el anfitrión pueda ajustar el ritmo del juego.
+He completado una actualización masiva que añade nuevos modos de juego, mejora la seguridad de las verificaciones y optimiza la fluidez de la interfaz.
 
 ## Cambios Realizados
 
-### 1. Control Deslizante (Slider)
-- Se añadió una nueva sección de "**Velocidad de juego**" en la sala de espera, visible únicamente para el anfitrión.
-- El rango configurado es de **1 a 10 segundos** por bolilla.
-- Se utiliza un componente visual moderno con un icono de cronómetro (`Timer`).
+### 1. Nuevos Modos de Juego (Patrones)
+Ahora el anfitrión puede elegir cómo se gana la partida antes de empezar:
+- **Línea:** El modo clásico (cualquier horizontal, vertical o diagonal).
+- **Cartón Lleno:** El premio gordo, hay que tachar los 25 números.
+- **Letra X:** Formar una X uniendo las esquinas.
+- **Cruz:** Completar la fila y columna central.
+- **4 Esquinas:** Solo los números de los extremos.
 
-### 2. Sincronización en Tiempo Real
-- La velocidad elegida se guarda instantáneamente en la base de datos de Supabase.
-- Todos los cambios se reflejan en tiempo real para el anfitrión mientras ajusta la barra.
+### 2. Pausa y Verificación Inteligente
+- **Pausa Automática:** En cuanto un jugador pulsa "BINGO", el sistema detiene el sorteo de bolas inmediatamente para evitar confusiones.
+- **Árbitro Digital:** Al verificar, el servidor revisa el patrón exacto.
+  - Si el bingo es **Real**: Se declaran los ganadores y termina el juego con el audio de victoria.
+  - Si el bingo es **Falso**: El sistema muestra un aviso y **reanuda el juego automáticamente**, continuando el sorteo desde donde se quedó.
 
-### 3. Lógica de Servidor
-- Se implementó la función `updateBallInterval` para gestionar el cambio de tiempo de forma segura desde el servidor.
+### 3. Optimización de UI (Sin Lag)
+- Se rediseñó la barra de velocidad. Ahora es **suave como la seda** porque solo envía el cambio a la base de datos cuando sueltas el control, evitando saturar la conexión.
+- Se añadió un indicador visual del "**Objetivo**" en la pantalla de juego para que todos los jugadores sepan qué patrón deben formar.
 
-## Cómo usarlo:
-1. Entra en la Sala de Espera como anfitrión.
-2. Verás un panel llamado "**Velocidad de juego**".
-3. Mueve la barra para elegir entre 1 y 10 segundos.
-4. Al iniciar la partida, el sorteo automático respetará ese tiempo exacto.
+## Pasos para Activar (Manual)
 
-¡El anfitrión ahora tiene el control total del ritmo de la partida! 🚀
+Como hemos añadido una nueva columna a la base de datos, ejecuta este comando:
+
+1.  **Actualizar DB:**
+    ```powershell
+    npx supabase db push --include-all
+    ```
+2.  **Sube los cambios:**
+    ```powershell
+    git add .
+    git commit -m "Nuevos modos de juego, verificación automática y slider fluido"
+    git push origin main
+    ```
+
+¡El Bingo ahora es mucho más versátil y profesional! ¿Listo para probar una partida en modo "Cartón Lleno"? 🎱🔥
