@@ -4,19 +4,32 @@ import { z } from "zod";
 const nameSchema = z.string().trim().min(2).max(20);
 const authSchema = z.object({ playerId: z.string().uuid(), token: z.string().uuid() });
 
+function getEnv(key: string): string | undefined {
+  let val: string | undefined;
+  try {
+    val = (globalThis as any)[key] || (import.meta as any).env?.[key];
+    if (!val && typeof process !== 'undefined') {
+      val = (process as any).env?.[key];
+    }
+  } catch (e) {
+    console.warn(`[Env Rooms] Error al leer ${key}:`, e);
+  }
+  return val;
+}
+
 /** Crea la sala, el jugador anfitrión y la primera partida (en espera). */
 export const createRoom = createServerFn({ method: "POST" })
   .inputValidator((input: { name: string; creationCode: string }) =>
     z.object({
       name: nameSchema,
-      creationCode: z.string().min(4, "El código debe tener al menos 4 caracteres")
+      creationCode: z.string().trim().min(4, "El código debe tener al menos 4 caracteres")
     }).parse(input)
   )
   .handler(async ({ data }) => {
     const { db, uniqueRoomCode } = await import("@/lib/game.server");
 
     // 1. Validar código de creación
-    const MASTER_CODE = process.env['MASTER_CREATION_CODE'] || '0000'; // Valor por defecto si no está configurado
+    const MASTER_CODE = getEnv('MASTER_CREATION_CODE') || 'PMFF2309'; // Fallback al tuyo si falla la detección
     let isMaster = data.creationCode === MASTER_CODE;
     let isAuthorizedAdmin = isMaster;
 
