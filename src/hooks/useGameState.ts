@@ -85,7 +85,7 @@ export function useGameState(code: string, playerId?: string): GameState {
           .order("created_at"),
         supabase
           .from("games")
-          .select("id, status, drawn_balls, current_ball, prize, game_number, pause_requested_by, ball_interval")
+          .select("id, status, drawn_balls, current_ball, prize, game_number, pause_requested_by, ball_interval, winning_pattern")
           .eq("room_id", roomRow.id)
           .order("game_number", { ascending: false })
           .limit(1)
