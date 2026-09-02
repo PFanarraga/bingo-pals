@@ -71,8 +71,8 @@ function Home() {
       toast.error("Escribe tu nombre");
       return;
     }
-    if (creationCode.length !== 4) {
-      toast.error("Escribe el código de creación de 4 dígitos");
+    if (creationCode.length < 4) {
+      toast.error("Escribe un código de creación válido");
       return;
     }
     setBusy(true);
@@ -156,16 +156,15 @@ function Home() {
       <section className="panel space-y-3 p-5 text-center">
         <p className="text-muted-foreground text-sm">¿Vas a organizar la partida?</p>
         <div className="space-y-1.5 text-left">
-          <Label htmlFor="creationCode">Código de Creación (4 dígitos)</Label>
+          <Label htmlFor="creationCode">Código de Creación</Label>
           <Input
             id="creationCode"
             type="password"
-            inputMode="numeric"
             value={creationCode}
-            maxLength={4}
-            placeholder="****"
+            maxLength={20}
+            placeholder="Introduce tu código"
             className="text-center font-mono tracking-widest"
-            onChange={(e) => setCreationCode(e.target.value.replace(/\D/g, ""))}
+            onChange={(e) => setCreationCode(e.target.value)}
           />
         </div>
         <Button variant="outline" className="h-12 w-full" disabled={busy} onClick={create}>

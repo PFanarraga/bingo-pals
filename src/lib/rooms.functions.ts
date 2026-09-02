@@ -9,7 +9,7 @@ export const createRoom = createServerFn({ method: "POST" })
   .inputValidator((input: { name: string; creationCode: string }) =>
     z.object({
       name: nameSchema,
-      creationCode: z.string().length(4, "El código debe tener 4 dígitos")
+      creationCode: z.string().min(4, "El código debe tener al menos 4 caracteres")
     }).parse(input)
   )
   .handler(async ({ data }) => {
