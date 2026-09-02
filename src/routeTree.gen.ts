@@ -10,33 +10,63 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as JuegoCodeRouteImport } from './routes/juego.$code'
+import { Route as ResultadoCodeRouteImport } from './routes/resultado.$code'
+import { Route as SalaCodeRouteImport } from './routes/sala.$code'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const JuegoCodeRoute = JuegoCodeRouteImport.update({
+  id: '/juego/$code',
+  path: '/juego/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResultadoCodeRoute = ResultadoCodeRouteImport.update({
+  id: '/resultado/$code',
+  path: '/resultado/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SalaCodeRoute = SalaCodeRouteImport.update({
+  id: '/sala/$code',
+  path: '/sala/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/juego/$code': typeof JuegoCodeRoute
+  '/resultado/$code': typeof ResultadoCodeRoute
+  '/sala/$code': typeof SalaCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/juego/$code': typeof JuegoCodeRoute
+  '/resultado/$code': typeof ResultadoCodeRoute
+  '/sala/$code': typeof SalaCodeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/juego/$code': typeof JuegoCodeRoute
+  '/resultado/$code': typeof ResultadoCodeRoute
+  '/sala/$code': typeof SalaCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/juego/$code' | '/resultado/$code' | '/sala/$code'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/juego/$code' | '/resultado/$code' | '/sala/$code'
+  id: '__root__' | '/' | '/juego/$code' | '/resultado/$code' | '/sala/$code'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  JuegoCodeRoute: typeof JuegoCodeRoute
+  ResultadoCodeRoute: typeof ResultadoCodeRoute
+  SalaCodeRoute: typeof SalaCodeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +78,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/juego/$code': {
+      id: '/juego/$code'
+      path: '/juego/$code'
+      fullPath: '/juego/$code'
+      preLoaderRoute: typeof JuegoCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resultado/$code': {
+      id: '/resultado/$code'
+      path: '/resultado/$code'
+      fullPath: '/resultado/$code'
+      preLoaderRoute: typeof ResultadoCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sala/$code': {
+      id: '/sala/$code'
+      path: '/sala/$code'
+      fullPath: '/sala/$code'
+      preLoaderRoute: typeof SalaCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  JuegoCodeRoute: JuegoCodeRoute,
+  ResultadoCodeRoute: ResultadoCodeRoute,
+  SalaCodeRoute: SalaCodeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
