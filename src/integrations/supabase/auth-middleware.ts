@@ -31,7 +31,12 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function getEnv(key: string): string | undefined {
-  return process.env[key] || (globalThis as any)[key] || (import.meta as any).env?.[key];
+  const val = process.env[key] || (globalThis as any)[key] || (import.meta as any).env?.[key];
+  if (!val) {
+    if (key === 'SUPABASE_URL') return 'https://sqwdjkozmldsizhrdlpl.supabase.co';
+    if (key === 'SUPABASE_PUBLISHABLE_KEY') return 'sb_publishable_hLzr8yOG1mWI2-TJcDk97Q_ytjT_Gle';
+  }
+  return val;
 }
 
 export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server(

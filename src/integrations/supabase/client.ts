@@ -29,7 +29,15 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 
 function getEnv(key: string): string | undefined {
   if (typeof window !== "undefined") return (import.meta as any).env?.[key];
-  return process.env[key] || (globalThis as any)[key] || (import.meta as any).env?.[key];
+  const val = process.env[key] || (globalThis as any)[key] || (import.meta as any).env?.[key];
+
+  // Hardcoded fallback para producción en Cloudflare si fallan todas las variables
+  if (!val) {
+    if (key.includes('URL')) return 'https://sqwdjkozmldsizhrdlpl.supabase.co';
+    if (key.includes('PUBLISHABLE')) return 'sb_publishable_hLzr8yOG1mWI2-TJcDk97Q_ytjT_Gle';
+    if (key.includes('PROJECT_ID')) return 'sqwdjkozmldsizhrdlpl';
+  }
+  return val;
 }
 
 function createSupabaseClient() {
