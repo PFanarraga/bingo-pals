@@ -89,6 +89,13 @@
   --sidebar-border: oklch(1 0 0 / 12%);
   --sidebar-ring: oklch(0.82 0.165 84);
 
+  /* Colores de las letras del Bingo */
+  --bingo-b: oklch(0.6 0.25 25);     /* Rojo */
+  --bingo-i: oklch(0.65 0.2 145);    /* Verde */
+  --bingo-n: oklch(0.6 0.18 250);    /* Azul */
+  --bingo-g: oklch(0.75 0.2 75);     /* Naranja/Amarillo */
+  --bingo-o: oklch(0.6 0.22 320);    /* Violeta */
+
   --gradient-stage: radial-gradient(
       120% 90% at 50% 0%,
       oklch(0.34 0.11 300 / 0.75) 0%,
@@ -164,6 +171,13 @@
     background-color: var(--color-muted);
     color: var(--color-muted-foreground);
   }
+
+  /* Variantes por letra */
+  .ball-b { background-color: var(--bingo-b); color: white; }
+  .ball-i { background-color: var(--bingo-i); color: white; }
+  .ball-n { background-color: var(--bingo-n); color: white; }
+  .ball-g { background-color: var(--bingo-g); color: black; }
+  .ball-o { background-color: var(--bingo-o); color: white; }
 
   /* Casilla del cartón */
   .cell {

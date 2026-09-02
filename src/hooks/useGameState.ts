@@ -13,6 +13,7 @@ export type Player = {
   name: string;
   is_host: boolean;
   connected: boolean;
+  is_ready: boolean;
   created_at: string;
 };
 export type Game = {
@@ -22,6 +23,7 @@ export type Game = {
   current_ball: number | null;
   prize: number;
   game_number: number;
+  pause_requested_by: string | null;
 };
 export type Card = { id: string; card_number: number; numbers: number[]; player_id: string };
 export type Claim = {
@@ -77,12 +79,12 @@ export function useGameState(code: string, playerId?: string): GameState {
       const [playersRes, gameRes] = await Promise.all([
         supabase
           .from("players")
-          .select("id, name, is_host, connected, created_at")
+          .select("id, name, is_host, connected, is_ready, created_at")
           .eq("room_id", roomRow.id)
           .order("created_at"),
         supabase
           .from("games")
-          .select("id, status, drawn_balls, current_ball, prize, game_number")
+          .select("id, status, drawn_balls, current_ball, prize, game_number, pause_requested_by")
           .eq("room_id", roomRow.id)
           .order("game_number", { ascending: false })
           .limit(1)

@@ -1,5 +1,6 @@
 // Helpers de servidor. Solo se importan dinámicamente dentro de handlers.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { generateCard } from "@/lib/bingo";
 
 export const db = supabaseAdmin;
 
@@ -72,4 +73,25 @@ export async function getGame(gameId: string): Promise<GameRow> {
     .maybeSingle();
   if (!data) throw new Error("Partida no encontrada");
   return data as GameRow;
+}
+
+/** Inicializa un pool de 30 cartones únicos para una partida. */
+export async function initializeCardPool(gameId: string, size = 30): Promise<void> {
+  const pool = new Set<string>();
+  const rows: { game_id: string; numbers: number[] }[] = [];
+
+  while (pool.size < size) {
+    const card = generateCard();
+    const key = JSON.stringify(card);
+    if (!pool.has(key)) {
+      pool.add(key);
+      rows.push({ game_id: gameId, numbers: card });
+    }
+  }
+
+  const { error } = await db.from("game_card_pool").insert(rows);
+  if (error) {
+    console.error("[Pool] Error al inicializar pool:", error);
+    throw new Error("No se pudo inicializar el pool de cartones");
+  }
 }

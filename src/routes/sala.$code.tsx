@@ -9,10 +9,12 @@ import { CardCarousel } from "@/components/bingo/CardCarousel";
 import { useGameState } from "@/hooks/useGameState";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
 import { assignCards, rerollCard } from "@/lib/cards.functions";
-import { startGame } from "@/lib/rooms.functions";
+import { startGame, toggleReady } from "@/lib/rooms.functions";
 import { sessionForRoom, type PlayerSession } from "@/lib/session";
 import { FREE_INDEX } from "@/lib/bingo";
 import { Copy, RefreshCw, Share2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { playIntro, unlockAudio } from "@/lib/audio";
 
 export const Route = createFileRoute("/sala/$code")({
   head: () => ({
@@ -55,9 +57,21 @@ function WaitingRoom() {
   useHeartbeat(session?.playerId, session?.token);
   const isHost = Boolean(session?.isHost);
 
+  const connectedPlayers = state.players.filter(p => p.connected);
+  const unreadyPlayers = connectedPlayers.filter(p => !p.is_ready);
+  const allReady = connectedPlayers.length > 0 && unreadyPlayers.length === 0;
+
+  // Inicio automático cuando todos están listos y el host tiene cartones
+  useEffect(() => {
+    if (isHost && allReady && state.game?.status === "WAITING" && state.cards.length > 0 && !busy) {
+      void start();
+    }
+  }, [isHost, allReady, state.game?.status, state.cards.length, busy]);
+
   useEffect(() => {
     if (!state.game) return;
     if (state.game.status === "PLAYING" || state.game.status === "PAUSED") {
+      playIntro();
       navigate({ to: "/juego/$code", params: { code } });
     } else if (state.game.status === "FINISHED") {
       navigate({ to: "/resultado/$code", params: { code } });
@@ -85,6 +99,7 @@ function WaitingRoom() {
 
   const changeCount = async (count: number) => {
     if (!session) return;
+    void unlockAudio();
     setBusy(true);
     try {
       await assignCards({ data: { playerId: session.playerId, token: session.token, count } });
@@ -98,6 +113,7 @@ function WaitingRoom() {
 
   const reroll = async (cardNumber: number) => {
     if (!session) return;
+    void unlockAudio();
     setBusy(true);
     try {
       await rerollCard({ data: { playerId: session.playerId, token: session.token, cardNumber } });
@@ -127,23 +143,27 @@ function WaitingRoom() {
     <main className="mx-auto w-full max-w-md space-y-5 px-4 py-6">
       <header className="text-center">
         <h1 className="font-display text-primary text-4xl">🎱 BINGO 75</h1>
-        <p className="text-muted-foreground mt-1 text-sm">Sala</p>
-        <p className="font-display text-5xl tracking-[0.2em]">{code.toUpperCase()}</p>
-        <div className="mt-3 flex justify-center gap-2">
-          <Button variant="secondary" size="sm" onClick={share}>
-            <Share2 className="mr-1 h-4 w-4" /> Compartir
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={async () => {
-              await navigator.clipboard.writeText(code.toUpperCase()).catch(() => undefined);
-              toast.success("Código copiado");
-            }}
-          >
-            <Copy className="mr-1 h-4 w-4" /> Copiar
-          </Button>
-        </div>
+        {isHost && (
+          <>
+            <p className="text-muted-foreground mt-1 text-sm">Sala</p>
+            <p className="font-display text-5xl tracking-[0.2em]">{code.toUpperCase()}</p>
+            <div className="mt-3 flex justify-center gap-2">
+              <Button variant="secondary" size="sm" onClick={share}>
+                <Share2 className="mr-1 h-4 w-4" /> Compartir
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(code.toUpperCase()).catch(() => undefined);
+                  toast.success("Código copiado");
+                }}
+              >
+                <Copy className="mr-1 h-4 w-4" /> Copiar
+              </Button>
+            </div>
+          </>
+        )}
       </header>
 
       <section className="panel p-4">
@@ -217,7 +237,7 @@ function WaitingRoom() {
       </section>
 
       {isHost ? (
-        <section className="panel space-y-3 p-4">
+        <section className="panel space-y-4 p-4">
           <div className="space-y-1.5">
             <Label htmlFor="prize">Premio de la partida (opcional)</Label>
             <Input
@@ -227,12 +247,63 @@ function WaitingRoom() {
               onChange={(e) => setPrize(e.target.value.replace(/[^0-9.]/g, ""))}
             />
           </div>
-          <Button className="h-14 w-full text-lg" disabled={busy} onClick={start}>
-            INICIAR JUEGO
-          </Button>
+
+          <div className="space-y-3 pt-2">
+            <Button
+              variant={state.players.find(p => p.id === session?.playerId)?.is_ready ? "default" : "outline"}
+              className={cn("h-14 w-full text-lg", state.players.find(p => p.id === session?.playerId)?.is_ready && "bg-green-600 hover:bg-green-700")}
+              disabled={busy}
+              onClick={async () => {
+                const me = state.players.find(p => p.id === session?.playerId);
+                if (!session || !me) return;
+                setBusy(true);
+                try {
+                  await toggleReady({ data: { playerId: session.playerId, token: session.token, ready: !me.is_ready } });
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              {state.players.find(p => p.id === session?.playerId)?.is_ready ? "¡ESTOY LISTO!" : "MARCAR LISTO (HOST)"}
+            </Button>
+
+            {!allReady && (
+              <p className="text-amber-500 text-center text-sm font-medium animate-pulse">
+                Faltan {unreadyPlayers.length} {unreadyPlayers.length === 1 ? 'jugador' : 'jugadores'} por marcar LISTO
+              </p>
+            )}
+
+            {allReady && (
+              <p className="text-green-500 text-center text-sm font-bold animate-bounce">
+                ¡INICIANDO PARTIDA EN AUTOMÁTICO!
+              </p>
+            )}
+          </div>
         </section>
       ) : (
-        <p className="text-muted-foreground py-4 text-center text-sm">Esperando al anfitrión…</p>
+        <div className="space-y-4">
+          <Button
+            variant={state.players.find(p => p.id === session?.playerId)?.is_ready ? "default" : "outline"}
+            className={cn("h-14 w-full text-lg", state.players.find(p => p.id === session?.playerId)?.is_ready && "bg-green-600 hover:bg-green-700")}
+            disabled={busy}
+            onClick={async () => {
+              const me = state.players.find(p => p.id === session?.playerId);
+              if (!session || !me) return;
+              void unlockAudio();
+              setBusy(true);
+              try {
+                await toggleReady({ data: { playerId: session.playerId, token: session.token, ready: !me.is_ready } });
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {state.players.find(p => p.id === session?.playerId)?.is_ready ? "¡ESTOY LISTO!" : "MARCAR LISTO"}
+          </Button>
+          <p className="text-muted-foreground text-center text-sm">
+            {allReady ? "¡Todos listos! El anfitrión ya puede iniciar." : `Esperando a ${unreadyPlayers.length} jugadores...`}
+          </p>
+        </div>
       )}
     </main>
   );

@@ -10,7 +10,6 @@ export const assignCards = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { db, requirePlayer } = await import("@/lib/game.server");
-    const { generateCard } = await import("@/lib/bingo");
     const player = await requirePlayer(data.playerId, data.token);
 
     const { data: game } = await db
@@ -23,17 +22,26 @@ export const assignCards = createServerFn({ method: "POST" })
     if (!game) throw new Error("No hay partida en la sala");
     if (game.status !== "WAITING") throw new Error("La partida ya comenzó");
 
-    await db.from("cards").delete().eq("player_id", player.id).eq("game_id", game.id);
+    // Usar la función RPC para asignar cartones de forma atómica y evitar duplicados
+    const { error } = await db.rpc("assign_cards_from_pool", {
+      p_player_id: player.id,
+      p_game_id: game.id,
+      p_count: data.count,
+    });
 
-    const rows = Array.from({ length: data.count }, (_, i) => ({
-      player_id: player.id,
-      game_id: game.id,
-      card_number: i + 1,
-      numbers: generateCard(),
-    }));
-    const { data: cards, error } = await db.from("cards").insert(rows).select("id, card_number, numbers");
-    if (error) throw new Error("No se pudieron generar los cartones");
-    return { gameId: game.id, cards };
+    if (error) {
+      console.error("[Cards] Error en assign_cards_from_pool:", error);
+      throw new Error(error.message || "No se pudieron asignar los cartones");
+    }
+
+    const { data: inserted } = await db
+      .from("cards")
+      .select("id, card_number, numbers")
+      .eq("player_id", player.id)
+      .eq("game_id", game.id)
+      .order("card_number");
+
+    return { gameId: game.id, cards: inserted ?? [] };
   });
 
 /** Cambia un cartón concreto por otro generado en el servidor (elegir cartón). */
@@ -43,7 +51,6 @@ export const rerollCard = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { db, requirePlayer } = await import("@/lib/game.server");
-    const { generateCard } = await import("@/lib/bingo");
     const player = await requirePlayer(data.playerId, data.token);
 
     const { data: game } = await db
@@ -56,12 +63,17 @@ export const rerollCard = createServerFn({ method: "POST" })
     if (!game) throw new Error("No hay partida en la sala");
     if (game.status !== "WAITING") throw new Error("La partida ya comenzó");
 
-    const { error } = await db
-      .from("cards")
-      .update({ numbers: generateCard() })
-      .eq("player_id", player.id)
-      .eq("game_id", game.id)
-      .eq("card_number", data.cardNumber);
-    if (error) throw new Error("No se pudo cambiar el cartón");
+    // Usar la función RPC para cambiar el cartón de forma atómica
+    const { error } = await db.rpc("reroll_single_card", {
+      p_player_id: player.id,
+      p_game_id: game.id,
+      p_card_number: data.cardNumber,
+    });
+
+    if (error) {
+      console.error("[Cards] Error en reroll_single_card:", error);
+      throw new Error(error.message || "No se pudo cambiar el cartón");
+    }
+
     return { ok: true };
   });

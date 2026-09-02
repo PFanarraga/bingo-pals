@@ -8,12 +8,19 @@ export type PlayerSession = {
   isHost: boolean;
 };
 
-const KEY = "bingo75:session";
+const KEY_PREFIX = "bingo75:session:";
 
-export function loadSession(): PlayerSession | null {
+export function loadSession(roomCode?: string): PlayerSession | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(KEY);
+    // Usamos sessionStorage para que cada pestaña sea un jugador independiente
+    if (!roomCode) {
+      const legacy = window.sessionStorage.getItem("bingo75:session") || window.localStorage.getItem("bingo75:session");
+      if (legacy) return JSON.parse(legacy) as PlayerSession;
+      return null;
+    }
+
+    const raw = window.sessionStorage.getItem(`${KEY_PREFIX}${roomCode.toUpperCase()}`);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PlayerSession;
     if (!parsed?.playerId || !parsed?.token) return null;
@@ -25,16 +32,20 @@ export function loadSession(): PlayerSession | null {
 
 export function saveSession(session: PlayerSession) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(KEY, JSON.stringify(session));
+  const key = `${KEY_PREFIX}${session.roomCode.toUpperCase()}`;
+  window.sessionStorage.setItem(key, JSON.stringify(session));
+  // También guardamos en la pestaña actual como "última sesión"
+  window.sessionStorage.setItem("bingo75:session", JSON.stringify(session));
 }
 
-export function clearSession() {
+export function clearSession(roomCode?: string) {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(KEY);
+  if (roomCode) {
+    window.sessionStorage.removeItem(`${KEY_PREFIX}${roomCode.toUpperCase()}`);
+  }
+  window.sessionStorage.removeItem("bingo75:session");
 }
 
 export function sessionForRoom(code: string): PlayerSession | null {
-  const session = loadSession();
-  if (!session) return null;
-  return session.roomCode.toUpperCase() === code.toUpperCase() ? session : null;
+  return loadSession(code);
 }

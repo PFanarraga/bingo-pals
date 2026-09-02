@@ -1,30 +1,13 @@
-// Cola de audio secuencial: letra -> pausa controlada -> número.
-// Los archivos viven en /audio (B.mp3 ... O.mp3, 01.mp3 ... 75.mp3).
-// Si un archivo no existe, la cola continúa sin bloquear el juego.
-
+// Cola de audio secuencial para el Bingo 75.
 import { letterOf } from "./bingo";
 
 const PAUSE_MS = 450;
-
-export type CommentKind = "start" | "bingo" | "fakeBingo" | "winner" | "end" | "random";
-
-// Nombres de archivo de comentarios (sin ruta). Vacío = sin comentarios.
-export const COMMENT_FILES: Record<CommentKind, string[]> = {
-  start: [],
-  bingo: [],
-  fakeBingo: [],
-  winner: [],
-  end: [],
-  random: [],
-};
 
 let enabled = true;
 let unlocked = false;
 let queue: string[] = [];
 let playing = false;
 let current: HTMLAudioElement | null = null;
-let lastComment = "";
-let ballsSinceComment = 0;
 
 export function setAudioEnabled(value: boolean) {
   enabled = value;
@@ -35,18 +18,28 @@ export function isAudioEnabled() {
   return enabled;
 }
 
-/** Debe llamarse desde un gesto del usuario (iOS bloquea el audio si no). */
+/** Desbloquea el audio para navegadores móviles y desktop. */
 export async function unlockAudio() {
-  if (unlocked || typeof window === "undefined") return;
+  if (typeof window === "undefined") return;
+
+  const ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+  if (ctx) {
+    const audioCtx = new ctx();
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+  }
+
   try {
     const el = new Audio();
     el.muted = true;
+    el.src = "data:audio/wav;base64,UklGRigAAABXQVZFAmZtdCAQAAAAAQABAIAAABkAAcwAAAgAgAB0YW5hAAAA"; // 1ms silent wav
     await el.play().catch(() => undefined);
     el.pause();
-  } catch {
-    /* ignorado */
-  }
+  } catch { /* ignorado */ }
+
   unlocked = true;
+  console.log("[Audio] Desbloqueado correctamente");
 }
 
 function play(src: string): Promise<void> {
@@ -88,34 +81,42 @@ export function stopAudio() {
   }
 }
 
-/** Reproduce letra + número de la bola. Corta lo anterior. */
+/** Canta la bola: Letra + Pausa + Número. */
 export function announceBall(ball: number) {
   if (!enabled) return;
   stopAudio();
-  const num = String(ball).padStart(2, "0");
+  const num = String(ball); // Archivos son 1.mp3, 2.mp3...
+  // Intentamos cargar la letra. Si no existe, el sistema de play() maneja el error y sigue.
   queue = [`/audio/${letterOf(ball)}.mp3`, "__pause__", `/audio/${num}.mp3`];
-  ballsSinceComment += 1;
   void runQueue();
 }
 
-/**
- * Comentarios controlados: nunca tras cada bola y nunca dos veces el mismo
- * de forma consecutiva.
- */
-export function playComment(kind: CommentKind, options?: { minBalls?: number }) {
+/** Sonidos especiales del juego */
+
+export function playIntro() {
   if (!enabled) return;
-  const files = COMMENT_FILES[kind];
-  if (!files.length) return;
-  const minBalls = options?.minBalls ?? 0;
-  if (kind === "random") {
-    if (ballsSinceComment < Math.max(minBalls, 5)) return;
-    if (Math.random() > 0.4) return;
-  }
-  const options2 = files.filter((f) => f !== lastComment);
-  const pool = options2.length ? options2 : files;
-  const file = pool[Math.floor(Math.random() * pool.length)]!;
-  lastComment = file;
-  ballsSinceComment = 0;
-  queue.push(`/audio/comentarios/${file}`);
+  stopAudio();
+  queue = ["/audio/intro.mp3"];
+  void runQueue();
+}
+
+export function playBingoPressed() {
+  if (!enabled) return;
+  stopAudio();
+  queue = ["/audio/fin de la partida.mp3"];
+  void runQueue();
+}
+
+export function playWinnerConfirmed() {
+  if (!enabled) return;
+  stopAudio();
+  queue = ["/audio/ganador.mp3"];
+  void runQueue();
+}
+
+export function playAllBallsDrawn() {
+  if (!enabled) return;
+  stopAudio();
+  queue = ["/audio/se han cantado todas las bolas.mp3"];
   void runQueue();
 }

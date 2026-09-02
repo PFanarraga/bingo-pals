@@ -15,19 +15,21 @@ const sizes = {
 };
 
 export function Ball({ number, size = "md", variant = "drawn", showLetter = true }: BallProps) {
+  const letter = letterOf(number).toLowerCase();
+
   return (
     <span
       className={cn(
-        "ball",
+        "ball transition-all duration-300",
         sizes[size],
-        variant === "drawn" && "ball-drawn",
-        variant === "current" && "ball-current",
+        variant === "drawn" && `ball-${letter}`,
+        variant === "current" && `ball-${letter} ring-4 ring-white ring-offset-2 ring-offset-background`,
         variant === "idle" && "ball-idle",
       )}
       aria-label={`${letterOf(number)} ${number}`}
     >
-      {showLetter && <span className="text-[0.6em] opacity-80">{letterOf(number)}</span>}
-      <span>{number}</span>
+      {showLetter && <span className="text-[0.6em] font-bold opacity-90">{letterOf(number)}</span>}
+      <span className="font-bold">{number}</span>
     </span>
   );
 }

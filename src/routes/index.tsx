@@ -8,6 +8,7 @@ import { createRoom, joinRoom } from "@/lib/rooms.functions";
 import { assignCards } from "@/lib/cards.functions";
 import { saveSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import { unlockAudio } from "@/lib/audio";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -45,6 +46,7 @@ function Home() {
       return;
     }
     setBusy(true);
+    void unlockAudio();
     try {
       const result = await joinRoom({ data: { name: name.trim(), code: code.trim() } });
       saveSession({
@@ -69,6 +71,7 @@ function Home() {
       return;
     }
     setBusy(true);
+    void unlockAudio();
     try {
       const result = await createRoom({ data: { name: name.trim() } });
       saveSession({
@@ -140,10 +143,7 @@ function Home() {
 
         <div className="grid gap-2">
           <Button className="h-12" disabled={busy} onClick={() => void enter()}>
-            ELEGIR CARTÓN
-          </Button>
-          <Button variant="secondary" className="h-12" disabled={busy} onClick={() => void enter()}>
-            CARTONES AL AZAR
+            UNIRSE A LA PARTIDA
           </Button>
         </div>
       </section>

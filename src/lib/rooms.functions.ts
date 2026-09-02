@@ -38,6 +38,9 @@ export const createRoom = createServerFn({ method: "POST" })
       .select("id")
       .single();
 
+    const { initializeCardPool } = await import("@/lib/game.server");
+    await initializeCardPool(game!.id);
+
     return {
       roomCode: room.code,
       playerId: player.id,
@@ -70,6 +73,16 @@ export const joinRoom = createServerFn({ method: "POST" })
       .select("id", { count: "exact", head: true })
       .eq("room_id", room.id);
     if ((count ?? 0) >= room.max_players) throw new Error("La sala está llena");
+
+    // Evitar nombres duplicados en la misma sala (case-insensitive)
+    const { data: same } = await db
+      .from("players")
+      .select("id")
+      .eq("room_id", room.id)
+      .ilike("name", data.name)
+      .limit(1)
+      .maybeSingle();
+    if (same) throw new Error("El nombre ya está en uso en esta sala");
 
     const { data: player, error } = await db
       .from("players")
@@ -160,6 +173,88 @@ export const setGameStatus = createServerFn({ method: "POST" })
     authSchema.extend({ status: z.enum(["PAUSED", "PLAYING", "FINISHED"]) }).parse(input),
   )
   .handler(async ({ data }) => {
+    const { db, requirePlayer } = await import("@/lib/game.server");
+    const player = await requirePlayer(data.playerId, data.token);
+
+    const { data: game } = await db
+      .from("games")
+      .select("id, status")
+      .eq("room_id", player.room_id)
+      .order("game_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!game) throw new Error("No hay partida en la sala");
+    if (game.status === "FINISHED") throw new Error("La partida ya terminó");
+
+    // Solo el host puede finalizar o reanudar después de una pausa si él lo decidió,
+    // pero permitimos que CUALQUIERA pause para verificar.
+    if (data.status === "FINISHED" && !player.is_host) {
+      throw new Error("Solo el anfitrión puede finalizar la partida");
+    }
+
+    if (data.status === "PLAYING" && game.status === "WAITING" && !player.is_host) {
+      throw new Error("Solo el anfitrión puede iniciar la partida");
+    }
+
+    const now = new Date().toISOString();
+
+    // Si pasamos a PLAYING (continuar), reseteamos el tiempo de la última bola
+    // para dar un respiro antes de que salga la siguiente automática.
+    const updates: any = {
+      status: data.status,
+      finished_at: data.status === "FINISHED" ? now : null,
+    };
+    if (data.status === "PLAYING") {
+      updates.last_ball_at = now;
+    }
+
+    await db
+      .from("games")
+      .update(updates)
+      .eq("id", game.id);
+
+    await db
+      .from("rooms")
+      .update({
+        status: data.status,
+        finished_at: data.status === "FINISHED" ? now : null,
+      })
+      .eq("id", player.room_id);
+    return { ok: true };
+  });
+
+/** Solicita una pausa al anfitrión. */
+export const requestPause = createServerFn({ method: "POST" })
+  .inputValidator((input: { playerId: string; token: string }) => authSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { db, requirePlayer } = await import("@/lib/game.server");
+    const player = await requirePlayer(data.playerId, data.token);
+
+    const { data: game } = await db
+      .from("games")
+      .select("id, status")
+      .eq("room_id", player.room_id)
+      .order("game_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!game || game.status !== "PLAYING") throw new Error("La partida no está en curso");
+
+    await db
+      .from("games")
+      .update({ pause_requested_by: player.id })
+      .eq("id", game.id);
+
+    return { ok: true };
+  });
+
+/** El anfitrión maneja una solicitud de pausa (aceptar/ignorar). */
+export const handlePauseRequest = createServerFn({ method: "POST" })
+  .inputValidator((input: { playerId: string; token: string; accept: boolean }) =>
+    authSchema.extend({ accept: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data }) => {
     const { db, requireHost } = await import("@/lib/game.server");
     const host = await requireHost(data.playerId, data.token);
 
@@ -170,26 +265,38 @@ export const setGameStatus = createServerFn({ method: "POST" })
       .order("game_number", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (!game) throw new Error("No hay partida en la sala");
-    if (game.status === "FINISHED") throw new Error("La partida ya terminó");
-    if (data.status !== "FINISHED" && game.status === "WAITING")
-      throw new Error("La partida no ha comenzado");
 
-    const now = new Date().toISOString();
-    await db
-      .from("games")
-      .update({
-        status: data.status,
-        finished_at: data.status === "FINISHED" ? now : null,
-      })
-      .eq("id", game.id);
-    await db
-      .from("rooms")
-      .update({
-        status: data.status,
-        finished_at: data.status === "FINISHED" ? now : null,
-      })
-      .eq("id", host.room_id);
+    if (!game) throw new Error("No hay partida");
+
+    const updates: any = { pause_requested_by: null };
+    if (data.accept) {
+      updates.status = "PAUSED";
+    }
+
+    await db.from("games").update(updates).eq("id", game.id);
+
+    if (data.accept) {
+      await db.from("rooms").update({ status: "PAUSED" }).eq("id", host.room_id);
+    }
+
+    return { ok: true };
+  });
+
+/** Cambia el estado de "Listo" del jugador. */
+export const toggleReady = createServerFn({ method: "POST" })
+  .inputValidator((input: { playerId: string; token: string; ready: boolean }) =>
+    authSchema.extend({ ready: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { db, requirePlayer } = await import("@/lib/game.server");
+    await requirePlayer(data.playerId, data.token);
+
+    const { error } = await db
+      .from("players")
+      .update({ is_ready: data.ready })
+      .eq("id", data.playerId);
+
+    if (error) throw new Error("No se pudo actualizar el estado");
     return { ok: true };
   });
 
@@ -219,6 +326,9 @@ export const newGame = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (error || !game) throw new Error("No se pudo crear la nueva partida");
+
+    const { initializeCardPool } = await import("@/lib/game.server");
+    await initializeCardPool(game.id);
 
     await db
       .from("rooms")
