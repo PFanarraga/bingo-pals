@@ -30,7 +30,15 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function getEnv(key: string): string | undefined {
-  const val = process.env[key] || (globalThis as any)[key] || (import.meta as any).env?.[key];
+  let val: string | undefined;
+  try {
+    val = (globalThis as any)[key] || (import.meta as any).env?.[key];
+    if (!val && typeof process !== 'undefined') {
+      val = (process as any).env?.[key];
+    }
+  } catch (e) {
+    console.warn(`[Env Server] Error al leer ${key}:`, e);
+  }
 
   // Fallback de seguridad para producción
   if (!val) {
