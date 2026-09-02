@@ -14,6 +14,7 @@ export type Player = {
   is_host: boolean;
   connected: boolean;
   is_ready: boolean;
+  is_authorized_admin: boolean;
   created_at: string;
 };
 export type Game = {
@@ -80,7 +81,7 @@ export function useGameState(code: string, playerId?: string): GameState {
       const [playersRes, gameRes] = await Promise.all([
         supabase
           .from("players")
-          .select("id, name, is_host, connected, is_ready, created_at")
+          .select("id, name, is_host, connected, is_ready, is_authorized_admin, created_at")
           .eq("room_id", roomRow.id)
           .order("created_at"),
         supabase

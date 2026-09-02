@@ -9,14 +9,15 @@ import { CardCarousel } from "@/components/bingo/CardCarousel";
 import { useGameState } from "@/hooks/useGameState";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
 import { assignCards, rerollCard } from "@/lib/cards.functions";
-import { startGame, toggleReady, updateBallInterval, updateWinningPattern } from "@/lib/rooms.functions";
+import { startGame, toggleReady, updateBallInterval, updateWinningPattern, generateCreationCode } from "@/lib/rooms.functions";
 import { sessionForRoom, type PlayerSession } from "@/lib/session";
 import { FREE_INDEX, PATTERNS, type WinningPattern } from "@/lib/bingo";
-import { Copy, RefreshCw, Share2, Timer, Target } from "lucide-react";
+import { Copy, RefreshCw, Share2, Timer, Target, KeyRound, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { playIntro, unlockAudio } from "@/lib/audio";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/sala/$code")({
   head: () => ({
@@ -39,6 +40,124 @@ const freeMarks = (() => {
   return arr;
 })();
 
+function CreationCodeModal({ playerId, token }: { playerId: string; token: string }) {
+  const [open, setOpen] = useState(false);
+  const [days, setDays] = useState<string>("0");
+  const [limit, setLimit] = useState<string>("0");
+  const [generated, setGenerated] = useState<{ code: string; expires_at: string | null; use_limit: number | null } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleGenerate = async () => {
+    setLoading(true);
+    try {
+      const res = await generateCreationCode({
+        data: {
+          playerId,
+          token,
+          days: days === "0" ? null : Number(days),
+          limit: limit === "0" ? null : Number(limit)
+        }
+      });
+      setGenerated(res);
+    } catch (e) {
+      toast.error("Error al generar código");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const reset = () => {
+    setGenerated(null);
+    setDays("0");
+    setLimit("0");
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(val) => { setOpen(val); if (!val) reset(); }}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="w-full border-primary/50 text-primary hover:bg-primary/10">
+          <KeyRound className="mr-2 h-4 w-4" />
+          GENERAR CÓDIGO
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-display text-2xl">Generar Código de Acceso</DialogTitle>
+        </DialogHeader>
+
+        {!generated ? (
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Vencimiento</Label>
+              <Select value={days} onValueChange={setDays}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Sin vencimiento</SelectItem>
+                  <SelectItem value="1">1 día</SelectItem>
+                  <SelectItem value="7">7 días</SelectItem>
+                  <SelectItem value="30">30 días</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Límite de uso</Label>
+              <Select value={limit} onValueChange={setLimit}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Ilimitado</SelectItem>
+                  <SelectItem value="1">1 uso</SelectItem>
+                  <SelectItem value="5">5 usos</SelectItem>
+                  <SelectItem value="10">10 usos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button className="flex-1" onClick={handleGenerate} disabled={loading}>
+                {loading ? "GENERANDO..." : "GENERAR"}
+              </Button>
+              <Button variant="ghost" className="flex-1" onClick={() => setOpen(false)}>
+                CANCELAR
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-6 py-6 text-center">
+            <div className="flex flex-col items-center gap-2">
+              <CheckCircle className="h-12 w-12 text-green-500" />
+              <h3 className="font-display text-2xl text-green-500">Código generado</h3>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-4xl font-mono font-bold tracking-[0.5em] text-primary">{generated.code}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-widest">
+                {generated.expires_at ? `Vence: ${new Date(generated.expires_at).toLocaleDateString()}` : "Sin vencimiento"}
+                {" · "}
+                {generated.use_limit ? `${generated.use_limit} usos` : "Usos ilimitados"}
+              </p>
+            </div>
+
+            <Button
+              className="w-full h-12 text-lg"
+              onClick={async () => {
+                await navigator.clipboard.writeText(generated.code);
+                toast.success("Código copiado");
+              }}
+            >
+              COPIAR CÓDIGO
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function WaitingRoom() {
   const { code } = Route.useParams();
   const navigate = useNavigate();
@@ -57,6 +176,9 @@ function WaitingRoom() {
   }, [code, navigate]);
 
   const state = useGameState(code, session?.playerId);
+
+  const me = state.players.find(p => p.id === session?.playerId);
+  const isAuthorizedAdmin = Boolean(me?.is_authorized_admin);
 
   // Sincronizar intervalo local con la DB si no estamos arrastrando
   useEffect(() => {
@@ -249,6 +371,12 @@ function WaitingRoom() {
 
       {isHost ? (
         <section className="panel space-y-4 p-4">
+          {isAuthorizedAdmin && (
+            <div className="border-b border-white/10 pb-4 mb-2">
+              <CreationCodeModal playerId={session!.playerId} token={session!.token} />
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <Label htmlFor="prize">Premio de la partida (opcional)</Label>
             <Input

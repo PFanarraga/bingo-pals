@@ -6,9 +6,51 @@ const authSchema = z.object({ playerId: z.string().uuid(), token: z.string().uui
 
 /** Crea la sala, el jugador anfitrión y la primera partida (en espera). */
 export const createRoom = createServerFn({ method: "POST" })
-  .inputValidator((input: { name: string }) => z.object({ name: nameSchema }).parse(input))
+  .inputValidator((input: { name: string; creationCode: string }) =>
+    z.object({
+      name: nameSchema,
+      creationCode: z.string().length(4, "El código debe tener 4 dígitos")
+    }).parse(input)
+  )
   .handler(async ({ data }) => {
     const { db, uniqueRoomCode } = await import("@/lib/game.server");
+
+    // 1. Validar código de creación
+    const MASTER_CODE = process.env['MASTER_CREATION_CODE'] || '0000'; // Valor por defecto si no está configurado
+    let isMaster = data.creationCode === MASTER_CODE;
+    let isAuthorizedAdmin = isMaster;
+
+    if (!isMaster) {
+      // Validar contra códigos normales en la base de datos
+      const { data: codeRow, error: codeError } = await db
+        .from("room_creation_codes")
+        .select("*")
+        .eq("code", data.creationCode)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (codeError || !codeRow) {
+        throw new Error("Código de creación no válido o inactivo");
+      }
+
+      // Verificar vencimiento
+      if (codeRow.expires_at && new Date(codeRow.expires_at) < new Date()) {
+        throw new Error("El código de creación ha vencido");
+      }
+
+      // Verificar límite de uso
+      if (codeRow.use_limit !== null && codeRow.use_count >= codeRow.use_limit) {
+        throw new Error("El código de creación ha agotado sus usos permitidos");
+      }
+
+      // Incrementar contador de uso
+      await db
+        .from("room_creation_codes")
+        .update({ use_count: codeRow.use_count + 1 })
+        .eq("id", codeRow.id);
+    }
+
+    // 2. Proceder con la creación de la sala
     const code = await uniqueRoomCode();
 
     const { data: room, error: roomError } = await db
@@ -20,7 +62,12 @@ export const createRoom = createServerFn({ method: "POST" })
 
     const { data: player, error: playerError } = await db
       .from("players")
-      .insert({ room_id: room.id, name: data.name, is_host: true })
+      .insert({
+        room_id: room.id,
+        name: data.name,
+        is_host: true,
+        is_authorized_admin: isAuthorizedAdmin
+      })
       .select("id")
       .single();
     if (playerError || !player) throw new Error("No se pudo crear el anfitrión");
@@ -354,6 +401,48 @@ export const updateWinningPattern = createServerFn({ method: "POST" })
 
     if (error) throw new Error("No se pudo actualizar el modo de juego");
     return { ok: true };
+  });
+
+/** Genera un nuevo código de creación (Solo administradores autorizados). */
+export const generateCreationCode = createServerFn({ method: "POST" })
+  .inputValidator((input: {
+    playerId: string;
+    token: string;
+    days: number | null;
+    limit: number | null
+  }) => authSchema.extend({
+    days: z.number().nullable(),
+    limit: z.number().nullable()
+  }).parse(input))
+  .handler(async ({ data }) => {
+    const { db, requirePlayer } = await import("@/lib/game.server");
+    const player = await requirePlayer(data.playerId, data.token);
+
+    if (!player.is_authorized_admin) {
+      throw new Error("No tienes autorización para generar códigos");
+    }
+
+    // Generar código de 4 dígitos aleatorio
+    const newCode = Math.floor(1000 + Math.random() * 9000).toString();
+
+    let expiresAt = null;
+    if (data.days) {
+      expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + data.days);
+    }
+
+    const { data: inserted, error } = await db
+      .from("room_creation_codes")
+      .insert({
+        code: newCode,
+        use_limit: data.limit,
+        expires_at: expiresAt?.toISOString()
+      })
+      .select("code, expires_at, use_limit")
+      .single();
+
+    if (error) throw new Error("Error al generar el código");
+    return inserted;
   });
 
 /** Nueva partida en la misma sala: bolas y cartones se reinician. */

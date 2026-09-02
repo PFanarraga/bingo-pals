@@ -1,52 +1,71 @@
-# Plan: Patrones de Victoria, Verificación Inteligente y Optimización de UI
+# Plan: Protección de Creación de Salas y Gestión de Códigos
 
-Este plan implementa la selección de tipos de juego (patrones), la pausa automática al cantar bingo, la verificación inteligente de cartones y soluciona el lag en el control de velocidad.
+Este plan implementa un sistema de seguridad para restringir quién puede crear salas de bingo mediante códigos de 4 dígitos. Se introduce un "Código Maestro" para el administrador principal y un sistema de "Códigos Normales" generados dinámicamente.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - Se añadirá una nueva columna `winning_pattern` a la tabla `games`.
-> - Los patrones soportados serán: **Línea**, **Cartón Lleno**, **Letra X**, **Cruz** y **4 Esquinas**.
-> - Al pulsar "BINGO", el sorteo automático se detendrá inmediatamente para todos.
-> - La verificación ahora será automática: el sistema comparará los números necesarios del patrón contra las bolas que realmente han salido.
-> - Se optimizará el control de velocidad para que la App no se sature al mover el deslizador.
+> - Se requiere añadir la variable de entorno `MASTER_CREATION_CODE` (ej: `1234`) tanto en Supabase como en Cloudflare.
+> - La creación de salas ahora solicitará obligatoriamente un código.
+> - Solo el anfitrión que use el Código Maestro podrá ver el botón "Generar código".
 
 ## Pasos Propuestos
 
 ### 1. Base de Datos (Supabase)
 
-#### [NEW] [20260902164000_add_winning_pattern.sql](file:///D:/bingo-pals/supabase/migrations/20260902164000_add_winning_pattern.sql)
-Añadir columna para el patrón de victoria y asegurar valores por defecto.
+#### [NEW] [20260902171000_add_room_creation_codes.sql](file:///D:/bingo-pals/supabase/migrations/20260902171000_add_room_creation_codes.sql)
+Crearemos una tabla mínima para gestionar los códigos de acceso.
+```sql
+CREATE TABLE public.room_creation_codes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  code text NOT NULL UNIQUE,
+  is_active boolean NOT NULL DEFAULT true,
+  use_limit integer, -- NULL = ilimitado
+  use_count integer NOT NULL DEFAULT 0,
+  expires_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 
-### 2. Lógica de Bingo (`src/lib/bingo.ts`)
+-- Marcar si un jugador es administrador autorizado
+ALTER TABLE public.players ADD COLUMN is_authorized_admin boolean NOT NULL DEFAULT false;
 
-- Definir los índices requeridos para cada patrón:
-  - **LINE**: Cualquier fila, columna o diagonal.
-  - **FULL**: Todos los 25 índices.
-  - **X**: Diagonales principales.
-  - **CROSS**: Fila y columna central.
-  - **CORNERS**: Las 4 esquinas del cartón.
-- Actualizar funciones de validación para soportar estos patrones dinámicamente.
+GRANT SELECT ON public.room_creation_codes TO service_role;
+GRANT INSERT, UPDATE ON public.room_creation_codes TO service_role;
+```
 
-### 3. Automatización y Pausa (`src/lib/balls.functions.ts` y `src/lib/claims.functions.ts`)
+### 2. Lógica de Servidor (`src/lib/rooms.functions.ts`)
 
-- **Pausa Automática**: `claimBingo` cambiará el estado del juego a `PAUSED` en cuanto reciba un reclamo potencialmente válido.
-- **Verificación Inteligente**: `verifyBingos` validará el patrón exacto. Si el cartón es falso, el juego se reanudará (`PLAYING`) automáticamente sin intervención del anfitrión.
+- **`createRoom`**:
+  - Validar el código recibido contra el `MASTER_CREATION_CODE` (del entorno).
+  - Si no coincide, buscar en `room_creation_codes` (verificando `is_active`, `expires_at` y `use_limit`).
+  - Incrementar el contador de uso si el código es normal.
+  - Marcar al jugador como `is_authorized_admin` solo si usó el Código Maestro.
+- **`generateCreationCode` [NEW]**:
+  - Función protegida: solo ejecutable por un jugador con `is_authorized_admin = true`.
+  - Generar código aleatorio de 4 dígitos único.
+  - Recibir y guardar configuración de vencimiento y límite de usos.
 
-### 4. Interfaz de Usuario (UI)
+### 3. Interfaz de Usuario (UI)
+
+#### [MODIFY] [index.tsx](file:///D:/bingo-pals/src/routes/index.tsx)
+- Añadir campo de entrada para el "Código de Creación" (4 dígitos) en la sección de crear sala.
 
 #### [MODIFY] [sala.$code.tsx](file:///D:/bingo-pals/src/routes/sala.$code.tsx)
-- **Selector de Patrón**: Añadir un menú desplegable para elegir el tipo de bingo.
-- **Optimización de Slider**: Cambiar la lógica del slider para que solo actualice la base de datos al soltar el ratón/dedo, eliminando el lag.
-
-#### [MODIFY] [juego.$code.tsx](file:///D:/bingo-pals/src/routes/juego.$code.tsx)
-- Mostrar el objetivo de la partida (ej: "Debes formar una CRUZ").
-- El botón de Bingo solo se activará si el sistema local detecta que el patrón se ha cumplido.
+- Mostrar el botón "**Generar código**" solo si `is_authorized_admin` es verdadero.
+- Implementar el modal flotante responsive con las opciones:
+  - Generación automática de 4 dígitos.
+  - Opciones de vencimiento (1, 7, 30 días, personalizado).
+  - Opciones de límite (1, 5, 10 usos, personalizado).
+  - Vista de confirmación con opción de copiar al portapapeles.
 
 ## Plan de Verificación
 
-### Pruebas Manuales
-1. Cambiar la velocidad rápidamente y verificar que el slider se mueve con fluidez.
-2. Iniciar un juego en modo "Cartón Lleno".
-3. Verificar que el botón de Bingo permanece desactivado hasta que se marquen todos los números.
-4. Cantar bingo y confirmar que el sorteo se detiene instantáneamente.
+### Pruebas de Seguridad
+1. Intentar crear sala con código inventado -> Debe fallar.
+2. Crear sala con Código Maestro -> Botón "Generar código" debe ser visible.
+3. Crear sala con código normal generado -> Botón "Generar código" debe estar oculto.
+4. Intentar llamar a la función de generación desde un cliente no autorizado -> Debe fallar en el servidor.
+
+### Pruebas de Límites
+1. Generar código con 1 solo uso -> Usarlo y verificar que el segundo intento falle.
+2. Generar código con vencimiento pasado -> Verificar que falle al intentar usarlo.

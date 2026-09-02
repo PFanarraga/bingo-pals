@@ -33,6 +33,7 @@ function Home() {
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
+  const [creationCode, setCreationCode] = useState("");
   const [count, setCount] = useState(1);
   const [busy, setBusy] = useState(false);
 
@@ -70,10 +71,14 @@ function Home() {
       toast.error("Escribe tu nombre");
       return;
     }
+    if (creationCode.length !== 4) {
+      toast.error("Escribe el código de creación de 4 dígitos");
+      return;
+    }
     setBusy(true);
     void unlockAudio();
     try {
-      const result = await createRoom({ data: { name: name.trim() } });
+      const result = await createRoom({ data: { name: name.trim(), creationCode } });
       saveSession({
         playerId: result.playerId,
         token: result.token,
@@ -150,6 +155,19 @@ function Home() {
 
       <section className="panel space-y-3 p-5 text-center">
         <p className="text-muted-foreground text-sm">¿Vas a organizar la partida?</p>
+        <div className="space-y-1.5 text-left">
+          <Label htmlFor="creationCode">Código de Creación (4 dígitos)</Label>
+          <Input
+            id="creationCode"
+            type="password"
+            inputMode="numeric"
+            value={creationCode}
+            maxLength={4}
+            placeholder="****"
+            className="text-center font-mono tracking-widest"
+            onChange={(e) => setCreationCode(e.target.value.replace(/\D/g, ""))}
+          />
+        </div>
         <Button variant="outline" className="h-12 w-full" disabled={busy} onClick={create}>
           CREAR SALA
         </Button>

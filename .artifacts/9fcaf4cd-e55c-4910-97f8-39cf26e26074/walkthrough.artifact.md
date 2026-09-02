@@ -1,40 +1,46 @@
-# Patrones de Victoria, Verificación Automática y UI Fluida
+# Protección de Salas y Gestión de Códigos (4 Dígitos)
 
-He completado una actualización masiva que añade nuevos modos de juego, mejora la seguridad de las verificaciones y optimiza la fluidez de la interfaz.
+He implementado el sistema de seguridad para restringir la creación de salas mediante códigos de acceso, manteniendo la simplicidad y la independencia de la arquitectura actual.
 
 ## Cambios Realizados
 
-### 1. Nuevos Modos de Juego (Patrones)
-Ahora el anfitrión puede elegir cómo se gana la partida antes de empezar:
-- **Línea:** El modo clásico (cualquier horizontal, vertical o diagonal).
-- **Cartón Lleno:** El premio gordo, hay que tachar los 25 números.
-- **Letra X:** Formar una X uniendo las esquinas.
-- **Cruz:** Completar la fila y columna central.
-- **4 Esquinas:** Solo los números de los extremos.
+### 1. Sistema de Autorización Doble
+- **Código Maestro:** Se introdujo un código privado (configurable por variable de entorno) que otorga poderes de "Administrador Autorizado".
+- **Códigos Normales:** Se implementó una nueva tabla `room_creation_codes` para gestionar permisos de un solo uso o temporales para otros anfitriones.
 
-### 2. Pausa y Verificación Inteligente
-- **Pausa Automática:** En cuanto un jugador pulsa "BINGO", el sistema detiene el sorteo de bolas inmediatamente para evitar confusiones.
-- **Árbitro Digital:** Al verificar, el servidor revisa el patrón exacto.
-  - Si el bingo es **Real**: Se declaran los ganadores y termina el juego con el audio de victoria.
-  - Si el bingo es **Falso**: El sistema muestra un aviso y **reanuda el juego automáticamente**, continuando el sorteo desde donde se quedó.
+### 2. Creación Protegida ([index.tsx](file:///D:/bingo-pals/src/routes/index.tsx))
+- La sección de "Crear Sala" ahora incluye un campo obligatorio para el **Código de Creación de 4 dígitos**.
+- El servidor valida este código antes de permitir la creación de cualquier sala.
 
-### 3. Optimización de UI (Sin Lag)
-- Se rediseñó la barra de velocidad. Ahora es **suave como la seda** porque solo envía el cambio a la base de datos cuando sueltas el control, evitando saturar la conexión.
-- Se añadió un indicador visual del "**Objetivo**" en la pantalla de juego para que todos los jugadores sepan qué patrón deben formar.
+### 3. Generador de Códigos ([sala.$code.tsx](file:///D:/bingo-pals/src/routes/sala.$code.tsx))
+- **Exclusividad:** Solo el anfitrión que entró con el Código Maestro verá el botón "**GENERAR CÓDIGO**".
+- **Modal Inteligente:** Permite crear nuevos códigos con:
+  - Vencimiento (1, 7, 30 días o ilimitado).
+  - Límite de usos (1, 5, 10 usos o ilimitado).
+- **Copia Rápida:** Una vez generado, se puede copiar al portapapeles con un solo clic.
+
+### 4. Seguridad de Backend
+- Las funciones de validación y generación se ejecutan exclusivamente en el servidor.
+- El Código Maestro nunca se envía al cliente; la validación ocurre de forma interna en Supabase/Cloudflare.
 
 ## Pasos para Activar (Manual)
 
-Como hemos añadido una nueva columna a la base de datos, ejecuta este comando:
+Como hemos modificado la estructura de datos, por favor ejecuta:
 
-1.  **Actualizar DB:**
+1.  **Actualizar Base de Datos:**
     ```powershell
     npx supabase db push --include-all
     ```
-2.  **Sube los cambios:**
+
+2.  **Configurar Código Maestro:**
+    Debes añadir la variable `MASTER_CREATION_CODE` en el panel de **Cloudflare (Runtime y Builds)** y en el de **Supabase**.
+    Ejemplo: `MASTER_CREATION_CODE=1234`.
+
+3.  **Sube los cambios:**
     ```powershell
     git add .
-    git commit -m "Nuevos modos de juego, verificación automática y slider fluido"
+    git commit -m "Protección de creación de salas con códigos de 4 dígitos"
     git push origin main
     ```
 
-¡El Bingo ahora es mucho más versátil y profesional! ¿Listo para probar una partida en modo "Cartón Lleno"? 🎱🔥
+¡Tu Bingo ahora está protegido! Solo tú (con el código maestro) puedes generar llaves para que otros amigos creen sus propias salas. 🔒🎲
