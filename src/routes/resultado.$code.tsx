@@ -76,7 +76,7 @@ function ResultScreen() {
         </h2>
         {state.winners.length > 0 && (
           <p className="text-muted-foreground text-sm">
-            Premio: {Number(state.game?.prize ?? 0).toFixed(2)} · {state.winners.length} ganador(es)
+            Premio: S/.{Number(state.game?.prize ?? 0).toFixed(2)} · {state.winners.length} ganador(es)
           </p>
         )}
         <ul className="space-y-2">
@@ -84,7 +84,7 @@ function ResultScreen() {
             <li key={w.id} className="flex items-center justify-between text-sm">
               <span className="truncate">🏆 {nameOf(w.player_id)}</span>
               <span className="font-display text-primary text-xl">
-                {Number(w.prize_share).toFixed(2)}
+                S/.{Number(w.prize_share).toFixed(2)}
               </span>
             </li>
           ))}

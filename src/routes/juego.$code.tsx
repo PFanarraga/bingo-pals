@@ -299,7 +299,7 @@ function GameScreen() {
           {state.game && state.game.prize > 0 && (
             <div className="text-right space-y-0.5">
               <p className="text-[10px] text-primary uppercase font-bold tracking-tighter">Pozo</p>
-              <p className="font-display text-lg text-primary leading-none">${state.game.prize}</p>
+              <p className="font-display text-lg text-primary leading-none">S/.{state.game.prize}</p>
             </div>
           )}
         </div>

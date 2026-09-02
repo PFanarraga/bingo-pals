@@ -28,6 +28,7 @@ export type PlayerRow = {
   room_id: string;
   name: string;
   is_host: boolean;
+  is_authorized_admin: boolean;
 };
 
 /** Valida que el jugador existe y que el token de sesión es el suyo. */
@@ -42,7 +43,7 @@ export async function requirePlayer(playerId: string, token: string): Promise<Pl
 
   const { data: player } = await db
     .from("players")
-    .select("id, room_id, name, is_host")
+    .select("id, room_id, name, is_host, is_authorized_admin")
     .eq("id", playerId)
     .maybeSingle();
   if (!player) throw new Error("Jugador no encontrado");
