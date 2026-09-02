@@ -300,6 +300,34 @@ export const toggleReady = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Actualiza el intervalo entre bolas (velocidad). */
+export const updateBallInterval = createServerFn({ method: "POST" })
+  .inputValidator((input: { playerId: string; token: string; interval: number }) =>
+    authSchema.extend({ interval: z.number().int().min(1).max(10) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { db, requireHost } = await import("@/lib/game.server");
+    const host = await requireHost(data.playerId, data.token);
+
+    const { data: game } = await db
+      .from("games")
+      .select("id")
+      .eq("room_id", host.room_id)
+      .order("game_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!game) throw new Error("No hay partida");
+
+    const { error } = await db
+      .from("games")
+      .update({ ball_interval: data.interval })
+      .eq("id", game.id);
+
+    if (error) throw new Error("No se pudo actualizar la velocidad");
+    return { ok: true };
+  });
+
 /** Nueva partida en la misma sala: bolas y cartones se reinician. */
 export const newGame = createServerFn({ method: "POST" })
   .inputValidator((input: { playerId: string; token: string }) => authSchema.parse(input))

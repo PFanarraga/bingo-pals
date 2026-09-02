@@ -24,6 +24,7 @@ export type Game = {
   prize: number;
   game_number: number;
   pause_requested_by: string | null;
+  ball_interval: number;
 };
 export type Card = { id: string; card_number: number; numbers: number[]; player_id: string };
 export type Claim = {
@@ -84,7 +85,7 @@ export function useGameState(code: string, playerId?: string): GameState {
           .order("created_at"),
         supabase
           .from("games")
-          .select("id, status, drawn_balls, current_ball, prize, game_number, pause_requested_by")
+          .select("id, status, drawn_balls, current_ball, prize, game_number, pause_requested_by, ball_interval")
           .eq("room_id", roomRow.id)
           .order("game_number", { ascending: false })
           .limit(1)

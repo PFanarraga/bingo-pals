@@ -9,12 +9,13 @@ import { CardCarousel } from "@/components/bingo/CardCarousel";
 import { useGameState } from "@/hooks/useGameState";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
 import { assignCards, rerollCard } from "@/lib/cards.functions";
-import { startGame, toggleReady } from "@/lib/rooms.functions";
+import { startGame, toggleReady, updateBallInterval } from "@/lib/rooms.functions";
 import { sessionForRoom, type PlayerSession } from "@/lib/session";
 import { FREE_INDEX } from "@/lib/bingo";
-import { Copy, RefreshCw, Share2 } from "lucide-react";
+import { Copy, RefreshCw, Share2, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { playIntro, unlockAudio } from "@/lib/audio";
+import { Slider } from "@/components/ui/slider";
 
 export const Route = createFileRoute("/sala/$code")({
   head: () => ({
@@ -249,6 +250,41 @@ function WaitingRoom() {
           </div>
 
           <div className="space-y-3 pt-2">
+            <div className="space-y-2.5 rounded-lg border bg-secondary/20 p-3">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <Timer className="h-4 w-4 text-primary" />
+                  Velocidad de juego
+                </Label>
+                <span className="font-display text-primary text-xl">
+                  {state.game?.ball_interval ?? 10}s
+                </span>
+              </div>
+              <Slider
+                value={[state.game?.ball_interval ?? 10]}
+                min={1}
+                max={10}
+                step={1}
+                onValueChange={async (vals) => {
+                  if (!session || !vals[0]) return;
+                  try {
+                    await updateBallInterval({
+                      data: {
+                        playerId: session.playerId,
+                        token: session.token,
+                        interval: vals[0]
+                      }
+                    });
+                  } catch (e) {
+                    toast.error("No se pudo cambiar la velocidad");
+                  }
+                }}
+              />
+              <p className="text-[10px] text-muted-foreground text-center uppercase tracking-tighter">
+                Segundos entre cada bolilla
+              </p>
+            </div>
+
             <Button
               variant={state.players.find(p => p.id === session?.playerId)?.is_ready ? "default" : "outline"}
               className={cn("h-14 w-full text-lg", state.players.find(p => p.id === session?.playerId)?.is_ready && "bg-green-600 hover:bg-green-700")}
