@@ -54,6 +54,11 @@ function GameScreen() {
     }
     setSession(found);
     void unlockAudio();
+
+    // Escuchar cualquier clic en la ventana para mantener el audio "vivo"
+    const wake = () => void unlockAudio();
+    window.addEventListener("click", wake);
+    return () => window.removeEventListener("click", wake);
   }, [code, navigate]);
 
   const state = useGameState(code, session?.playerId);

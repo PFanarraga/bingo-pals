@@ -2,6 +2,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { unlockAudio } from "@/lib/audio";
 
 /** Muestra los cartones en desplazamiento horizontal, con flechas de navegación para PC. */
 export function CardCarousel({
@@ -27,6 +28,7 @@ export function CardCarousel({
   const scroll = (direction: "prev" | "next") => {
     const el = scroller.current;
     if (!el) return;
+    void unlockAudio(); // Despertar audio en cada clic de navegación
     const width = el.clientWidth;
     const target = direction === "next" ? el.scrollLeft + width : el.scrollLeft - width;
     el.scrollTo({ left: target, behavior: "smooth" });
