@@ -8,7 +8,7 @@ import { BingoCardView } from "@/components/bingo/BingoCardView";
 import { CardCarousel } from "@/components/bingo/CardCarousel";
 import { useGameState } from "@/hooks/useGameState";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
-import { assignCards, rerollCard } from "@/lib/cards.functions";
+import { assignCards as assignCardsFn, rerollCard as rerollCardFn } from "@/lib/cards.functions";
 import { startGame, toggleReady, updateBallInterval, updateWinningPattern, generateCreationCode, getActiveCreationCodes } from "@/lib/rooms.functions";
 import { sessionForRoom, type PlayerSession } from "@/lib/session";
 import { FREE_INDEX, PATTERNS, type WinningPattern } from "@/lib/bingo";
@@ -318,7 +318,7 @@ function WaitingRoom() {
     void unlockAudio();
     setBusy(true);
     try {
-      await assignCards({ data: { playerId: session.playerId, token: session.token, count } });
+      await assignCardsFn({ data: { playerId: session.playerId, token: session.token, count } });
       state.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo cambiar los cartones");
@@ -332,7 +332,7 @@ function WaitingRoom() {
     void unlockAudio();
     setBusy(true);
     try {
-      await rerollCard({ data: { playerId: session.playerId, token: session.token, cardNumber } });
+      await rerollCardFn({ data: { playerId: session.playerId, token: session.token, cardNumber } });
       state.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo cambiar el cartón");

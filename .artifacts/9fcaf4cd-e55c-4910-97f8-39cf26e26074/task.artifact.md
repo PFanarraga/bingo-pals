@@ -1,6 +1,6 @@
-# Tareas: Estabilidad y Corrección Multi-sala
+# Tareas: Restricción de Salas Simultáneas
 
-- [x] Restaurar funciones de cartones en `sala.$code.tsx`
-- [x] Mejorar aislamiento de sesiones en `session.ts`
-- [x] Reforzar motor de audio en `audio.ts`
-- [ ] Verificar funcionamiento en el navegador
+- [x] Crear migración para vincular salas con códigos (`created_by_code_id`)
+- [x] Implementar validación de sala activa en `createRoom`
+- [ ] Aplicar migración a Supabase (`npx supabase db push --include-all`)
+- [x] Verificar funcionamiento de restricción vs Código Maestro

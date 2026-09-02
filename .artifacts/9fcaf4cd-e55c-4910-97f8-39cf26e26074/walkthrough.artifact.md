@@ -1,35 +1,39 @@
-# Reparación de Estabilidad: Control de Cartones y Sesiones
+# Restricción de Salas Simultáneas por Código
 
-He corregido los fallos que causaban inestabilidad al manejar múltiples salas y restaurado la funcionalidad de los botones de cartones que se habían perdido.
+He implementado una nueva capa de seguridad que impide que un código de creación normal sea utilizado para abrir múltiples salas al mismo tiempo.
 
 ## Cambios Realizados
 
-### 1. Restauración de Control de Cartones ([sala.$code.tsx](file:///D:/bingo-pals/src/routes/sala.$code.tsx))
-- Se restauraron las funciones `assignCards` (para elegir 1, 2 o 3 cartones) y `rerollCard` (para cambiar cartones al azar).
-- **Resultado:** Ahora los botones en el celular y PC vuelven a responder correctamente.
+### 1. Vínculo Sala-Código
+- Se añadió una columna `created_by_code_id` a la tabla `rooms`.
+- Esto permite al sistema saber exactamente qué código "pagó" por la creación de cada sala.
 
-### 2. Aislamiento Total de Salas ([session.ts](file:///D:/bingo-pals/src/lib/session.ts))
-- Se eliminó el guardado de sesiones genéricas que causaba que una pestaña "pisara" a la otra.
-- Ahora cada sala utiliza exclusivamente su propio espacio de memoria en el navegador.
-- **Resultado:** Puedes crear y jugar en múltiples salas simultáneamente sin que se crucen los cartones o el estado de "Listo".
+### 2. Validación de Sala Activa
+- **Códigos Normales:** Al intentar crear una sala, el servidor ahora revisa si existe alguna otra sala abierta (`WAITING`, `PLAYING`, `PAUSED`) vinculada a ese código.
+- **Bloqueo:** Si hay una sala activa, la creación se rechaza con el mensaje: *"Este código ya tiene una sala activa. Finalízala para crear una nueva."*
+- **Código Maestro:** El código maestro (`PMFF2309`) está exento de esta regla y puede seguir creando infinitas salas simultáneas.
 
-### 3. Mejora de Robustez en Audio ([audio.ts](file:///D:/bingo-pals/src/lib/audio.ts))
-- Se añadió una comprobación de seguridad antes de cada sonido para asegurar que el motor de audio no se "duerma" si cambias de pestaña o cartón.
-- **Resultado:** El juego mantendrá su voz fluida incluso en sesiones largas o con múltiples ventanas abiertas.
+## Pasos para Activar (Manual)
 
-## Pasos para Activar
+Como hemos modificado la base de datos para rastrear los códigos, por favor ejecuta:
 
-Para aplicar estas reparaciones en tu servidor online, realiza el push final:
+1.  **Actualizar DB:**
+    ```powershell
+    npx supabase db push --include-all
+    ```
 
-```powershell
-git add .
-git commit -m "Fix: Estabilidad multi-sala, restauración de cartones y audio robusto"
-git push origin main
-```
+2.  **Sube los cambios:**
+    ```powershell
+    git add .
+    git commit -m "Implementada restricción de sala única por código normal"
+    git push origin main
+    ```
 
-**Verificación Sugerida:**
-1. Abre tu sala en el celular.
-2. Verifica que ya puedes cambiar a 2 o 3 cartones y usar el botón "**CARTONES AL AZAR**".
-3. Abre otra sala distinta en tu PC y verifica que ambas funcionan de forma independiente y con sonido.
+## Cómo Probarlo:
+1. Genera un código normal.
+2. Úsalo para crear una sala.
+3. Intenta usar **ese mismo código** en otra pestaña para abrir una segunda sala -> El sistema te dará el error de "Sala activa".
+4. Finaliza la primera partida (como Host).
+5. Vuelve a intentar crear la sala con el mismo código -> Ahora te dejará pasar.
 
-¡Todo vuelve a estar bajo control y más sólido que antes! 🛠️🎱✅
+¡Ahora tienes un control mucho más estricto y profesional sobre el uso de tus códigos! 🔒🎱✅

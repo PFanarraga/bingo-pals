@@ -34,6 +34,7 @@ export const createRoom = createServerFn({ method: "POST" })
 
     let isMaster = inputCode === MASTER_CODE;
     let isAuthorizedAdmin = isMaster;
+    let usedCodeId = null;
 
     if (!isMaster) {
       // Validar contra códigos normales en la base de datos
@@ -48,6 +49,17 @@ export const createRoom = createServerFn({ method: "POST" })
         throw new Error("Código de creación no válido o inactivo");
       }
 
+      // Verificar si ya tiene una sala activa (exclusivo para códigos normales)
+      const { count: activeRooms } = await db
+        .from("rooms")
+        .select("id", { count: "exact", head: true })
+        .eq("created_by_code_id", codeRow.id)
+        .neq("status", "FINISHED");
+
+      if ((activeRooms ?? 0) > 0) {
+        throw new Error("Este código ya tiene una sala activa. Finalízala para crear una nueva.");
+      }
+
       // Verificar vencimiento
       if (codeRow.expires_at && new Date(codeRow.expires_at) < new Date()) {
         throw new Error("El código de creación ha vencido");
@@ -57,6 +69,8 @@ export const createRoom = createServerFn({ method: "POST" })
       if (codeRow.use_limit !== null && codeRow.use_count >= codeRow.use_limit) {
         throw new Error("El código de creación ha agotado sus usos permitidos");
       }
+
+      usedCodeId = codeRow.id;
 
       // Incrementar contador de uso
       await db
@@ -70,7 +84,11 @@ export const createRoom = createServerFn({ method: "POST" })
 
     const { data: room, error: roomError } = await db
       .from("rooms")
-      .insert({ code, status: "WAITING" })
+      .insert({
+        code,
+        status: "WAITING",
+        created_by_code_id: usedCodeId
+      })
       .select("id, code")
       .single();
     if (roomError || !room) throw new Error("No se pudo crear la sala");
