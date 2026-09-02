@@ -89,6 +89,11 @@ async function processQueue() {
   isProcessing = true;
 
   try {
+    // Si el contexto existe pero está suspendido, intentamos despertarlo antes de empezar
+    if (audioContext?.state === 'suspended') {
+      await audioContext.resume().catch(() => undefined);
+    }
+
     while (queue.length > 0 && enabled) {
       const task = queue.shift()!;
 
@@ -98,6 +103,8 @@ async function processQueue() {
         await playFile(task);
       }
     }
+  } catch (e) {
+    console.error("[Audio] Error en processQueue:", e);
   } finally {
     isProcessing = false;
     // Si llegaron nuevos elementos mientras terminábamos, relanzamos

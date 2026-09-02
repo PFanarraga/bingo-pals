@@ -34,8 +34,6 @@ export function saveSession(session: PlayerSession) {
   if (typeof window === "undefined") return;
   const key = `${KEY_PREFIX}${session.roomCode.toUpperCase()}`;
   window.sessionStorage.setItem(key, JSON.stringify(session));
-  // También guardamos en la pestaña actual como "última sesión"
-  window.sessionStorage.setItem("bingo75:session", JSON.stringify(session));
 }
 
 export function clearSession(roomCode?: string) {
@@ -43,7 +41,6 @@ export function clearSession(roomCode?: string) {
   if (roomCode) {
     window.sessionStorage.removeItem(`${KEY_PREFIX}${roomCode.toUpperCase()}`);
   }
-  window.sessionStorage.removeItem("bingo75:session");
 }
 
 export function sessionForRoom(code: string): PlayerSession | null {

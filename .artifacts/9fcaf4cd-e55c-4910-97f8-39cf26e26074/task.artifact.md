@@ -1,8 +1,6 @@
-# Tareas: Navegación PC, Moneda S/. y Fix de Generador
+# Tareas: Estabilidad y Corrección Multi-sala
 
-- [x] Cambiar símbolo de moneda `$` a `S/.` en todos los archivos
-- [ ] Implementar flechas de navegación en `CardCarousel.tsx`
-- [ ] Investigar y corregir fallo en el generador de códigos
-    - [ ] Revisar permisos RLS de la tabla `room_creation_codes`
-    - [ ] Verificar envío de `is_authorized_admin` en el frontend
-- [ ] Verificar funcionamiento general
+- [x] Restaurar funciones de cartones en `sala.$code.tsx`
+- [x] Mejorar aislamiento de sesiones en `session.ts`
+- [x] Reforzar motor de audio en `audio.ts`
+- [ ] Verificar funcionamiento en el navegador

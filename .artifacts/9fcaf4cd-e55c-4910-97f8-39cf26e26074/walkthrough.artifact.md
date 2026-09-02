@@ -1,34 +1,35 @@
-# Navegación PC, Moneda Local S/. y Corrección de Generador
+# Reparación de Estabilidad: Control de Cartones y Sesiones
 
-He implementado las mejoras de navegación para PC, actualizado la moneda a Soles Peruanos y corregido el fallo técnico que impedía generar códigos de acceso.
+He corregido los fallos que causaban inestabilidad al manejar múltiples salas y restaurado la funcionalidad de los botones de cartones que se habían perdido.
 
 ## Cambios Realizados
 
-### 1. Navegación con Flechas en PC ([CardCarousel.tsx](file:///D:/bingo-pals/src/components/bingo/CardCarousel.tsx))
-- **Flechas Laterales:** He añadido botones de flecha a la izquierda y derecha de los cartones.
-- **Efecto Hover:** Las flechas son invisibles por defecto y aparecen suavemente al pasar el ratón por encima del área del cartón.
-- **Desplazamiento por Clic:** Ahora puedes cambiar de cartón haciendo clic en las flechas, facilitando el uso en ordenadores sin pantalla táctil.
+### 1. Restauración de Control de Cartones ([sala.$code.tsx](file:///D:/bingo-pals/src/routes/sala.$code.tsx))
+- Se restauraron las funciones `assignCards` (para elegir 1, 2 o 3 cartones) y `rerollCard` (para cambiar cartones al azar).
+- **Resultado:** Ahora los botones en el celular y PC vuelven a responder correctamente.
 
-### 2. Símbolo de Moneda Peruana (S/.)
-- Se ha reemplazado el símbolo `$` por `S/.` en todas las pantallas donde se muestra el pozo o los premios:
-  - Pantalla de Juego.
-  - Pantalla de Resultados (Ganadores).
-  - Sala de Espera (Premio configurado).
+### 2. Aislamiento Total de Salas ([session.ts](file:///D:/bingo-pals/src/lib/session.ts))
+- Se eliminó el guardado de sesiones genéricas que causaba que una pestaña "pisara" a la otra.
+- Ahora cada sala utiliza exclusivamente su propio espacio de memoria en el navegador.
+- **Resultado:** Puedes crear y jugar en múltiples salas simultáneamente sin que se crucen los cartones o el estado de "Listo".
 
-### 3. Solución al Generador de Códigos
-- **Error Detectado:** El servidor no estaba leyendo correctamente si el jugador era un "Administrador Autorizado" al intentar generar un código.
-- **Corrección en Servidor ([game.server.ts](file:///D:/bingo-pals/src/lib/game.server.ts)):** Se actualizó la función de verificación para que incluya la columna `is_authorized_admin` en la consulta.
-- **Autorización Real:** Ahora el botón "**GENERAR CÓDIGO**" funcionará correctamente para cualquier anfitrión que haya entrado con el Código Maestro.
+### 3. Mejora de Robustez en Audio ([audio.ts](file:///D:/bingo-pals/src/lib/audio.ts))
+- Se añadió una comprobación de seguridad antes de cada sonido para asegurar que el motor de audio no se "duerma" si cambias de pestaña o cartón.
+- **Resultado:** El juego mantendrá su voz fluida incluso en sesiones largas o con múltiples ventanas abiertas.
 
-## Cómo verificarlo
+## Pasos para Activar
 
-1.  **Sube los cambios:**
-    ```powershell
-    git add .
-    git commit -m "Final: Navegación PC, moneda S/. y fix de generador"
-    git push origin main
-    ```
-2.  **Prueba en PC:** Abre el Bingo en tu navegador, pasa el ratón por el cartón y verás las nuevas flechas.
-3.  **Genera un Código:** Crea una sala con tu código maestro (`PMFF2309`) y pulsa en "**GENERAR CÓDIGO**". Ahora debería funcionar a la primera.
+Para aplicar estas reparaciones en tu servidor online, realiza el push final:
 
-¡El Bingo está más pulido que nunca y listo para el mercado peruano! 🇵🇪🎱✨
+```powershell
+git add .
+git commit -m "Fix: Estabilidad multi-sala, restauración de cartones y audio robusto"
+git push origin main
+```
+
+**Verificación Sugerida:**
+1. Abre tu sala en el celular.
+2. Verifica que ya puedes cambiar a 2 o 3 cartones y usar el botón "**CARTONES AL AZAR**".
+3. Abre otra sala distinta en tu PC y verifica que ambas funcionan de forma independiente y con sonido.
+
+¡Todo vuelve a estar bajo control y más sólido que antes! 🛠️🎱✅

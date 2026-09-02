@@ -8,6 +8,7 @@ import { BingoCardView } from "@/components/bingo/BingoCardView";
 import { CardCarousel } from "@/components/bingo/CardCarousel";
 import { useGameState } from "@/hooks/useGameState";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
+import { assignCards, rerollCard } from "@/lib/cards.functions";
 import { startGame, toggleReady, updateBallInterval, updateWinningPattern, generateCreationCode, getActiveCreationCodes } from "@/lib/rooms.functions";
 import { sessionForRoom, type PlayerSession } from "@/lib/session";
 import { FREE_INDEX, PATTERNS, type WinningPattern } from "@/lib/bingo";
