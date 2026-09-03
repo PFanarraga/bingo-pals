@@ -1,43 +1,38 @@
-# Plan: Restricción de Salas Simultáneas por Código
+# Plan: Chat de Voz Inteligente (10s Max y Rotación de 2 Audios)
 
-Este plan implementa una restricción para asegurar que los códigos de creación normales solo puedan tener una sala activa (sin finalizar) a la vez. El Código Maestro permanecerá libre de esta restricción, permitiendo múltiples salas simultáneas.
+Este plan implementa un sistema de mensajes de voz optimizado con rotación de archivos y "Ducking" de audio para una experiencia de juego interactiva.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - Un código normal no podrá usarse para crear una nueva sala si ya existe una sala en curso (`WAITING`, `PLAYING` o `PAUSED`) vinculada a él.
-> - El anfitrión deberá finalizar la partida anterior para poder reutilizar su código (si aún tiene usos disponibles).
-> - El Código Maestro podrá seguir abriendo salas ilimitadas simultáneamente.
+> - **Límite de tiempo:** La grabación se detendrá automáticamente a los **10 segundos**.
+> - **Rotación de Audios:** Cada jugador podrá tener un máximo de **2 audios activos** en el servidor. Al enviar el tercero, el sistema borrará automáticamente el más antiguo de ese jugador.
+> - **Borrado Final:** Al terminar la partida, se eliminarán todos los audios de la sala del Storage.
+> - **Permisos:** Se solicitará acceso al micrófono en el primer uso.
 
 ## Pasos Propuestos
 
-### 1. Base de Datos (Supabase)
+### 1. Motor de Audio con Ducking (`src/lib/audio.ts`)
+- Implementar `announcerVolume` variable.
+- Función `playVoiceMessage(url)`: baja el volumen del locutor al 20%, reproduce la voz y restaura el volumen al terminar.
 
-#### [NEW] [20260902182000_link_rooms_to_codes.sql](file:///D:/bingo-pals/supabase/migrations/20260902182000_link_rooms_to_codes.sql)
-Añadiremos una columna para vincular cada sala con el código que la autorizó.
-```sql
-ALTER TABLE public.rooms ADD COLUMN created_by_code_id uuid REFERENCES public.room_creation_codes(id);
-CREATE INDEX idx_rooms_created_by_code_id ON public.rooms(created_by_code_id);
-```
+### 2. Gestión de Almacenamiento y Voz (`src/lib/voice-chat.ts`)
+- **Grabación**: Interfaz con `MediaRecorder` y límite de 10s.
+- **Rotación (2 archivos)**: Antes de subir un audio nuevo, el sistema consultará cuántos audios tiene el jugador. Si ya tiene 2, borrará el más antiguo antes de subir el nuevo.
+- **Broadcast**: Emitir la URL del audio vía Supabase Realtime.
 
-### 2. Lógica de Servidor (`src/lib/rooms.functions.ts`)
+### 3. Limpieza de Fin de Juego (`src/lib/rooms.functions.ts` y `src/lib/game.server.ts`)
+- Implementar `cleanupRoomStorage(roomCode)` en el servidor.
+- Ejecutar limpieza automática al cambiar estado a `FINISHED` o iniciar `newGame`.
 
-- **`createRoom`**:
-  - Si se usa un código normal:
-    - Realizar una búsqueda en la tabla `rooms` para ver si hay alguna sala con ese `created_by_code_id` cuyo estado no sea `FINISHED`.
-    - Si se encuentra una, rechazar la creación con el mensaje: "Ya tienes una sala activa con este código. Finalízala antes de crear una nueva."
-    - Al insertar la nueva sala, guardar el `id` del código utilizado.
-  - Si se usa el Código Maestro:
-    - Omitir la comprobación y no guardar vínculo (permitiendo salas infinitas).
+### 4. Interfaz de Juego (`src/routes/juego.$code.tsx`)
+- Añadir botón de **Micrófono** táctil.
+- Visualización de estado: "Grabando (0:05 / 0:10)".
+- Suscripción para reproducción automática de mensajes de otros jugadores.
 
 ## Plan de Verificación
 
-### Pruebas de Restricción
-1. Crear una sala con un código generado de 5 usos.
-2. Sin finalizar esa sala, intentar crear otra con el mismo código -> Debe fallar.
-3. Finalizar la sala inicial.
-4. Intentar crear una sala nueva con el mismo código -> Debe permitirlo (porque el uso total es 5 y no hay salas activas).
-
-### Pruebas de Código Maestro
-1. Crear una sala con el Código Maestro.
-2. Intentar crear una segunda sala con el Código Maestro en otra pestaña -> Debe permitirlo.
+### Pruebas de Funcionamiento
+1. Enviar 3 audios seguidos -> Verificar en Supabase que solo quedan los 2 últimos.
+2. Verificar que el audio del Bingo baja su volumen mientras suena la voz.
+3. Finalizar partida y confirmar que el Storage se vacía completamente.

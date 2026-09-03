@@ -1,9 +1,9 @@
-// Motor de audio profesional para Bingo 75 - Versión Blindada v2
-// Soluciona el deadlock al interrumpir audios y mejora la persistencia.
-
+// Motor de audio profesional para Bingo 75 - Versión con Ducking para Voz
 import { letterOf } from "./bingo";
 
 const PAUSE_MS = 450;
+const DUCK_VOLUME = 0.2;
+const NORMAL_VOLUME = 1.0;
 
 let enabled = true;
 let unlocked = false;
@@ -12,6 +12,9 @@ let isProcessing = false;
 let audioContext: AudioContext | null = null;
 let currentAudio: HTMLAudioElement | null = null;
 let resolveCurrentPlay: ((value: void | PromiseLike<void>) => void) | null = null;
+
+// Control de volumen global para el locutor
+let announcerVolume = NORMAL_VOLUME;
 
 export function setAudioEnabled(value: boolean) {
   enabled = value;
@@ -35,7 +38,6 @@ export async function unlockAudio() {
     await audioContext.resume().catch(() => undefined);
   }
 
-  // Activa el canal de audio con un micro-sonido
   try {
     const probe = new Audio();
     probe.muted = true;
@@ -57,14 +59,13 @@ export function stopAudio() {
     } catch (e) {}
     currentAudio = null;
   }
-  // CRÍTICO: Forzamos la resolución de la promesa pendiente para evitar el deadlock
   if (resolveCurrentPlay) {
     resolveCurrentPlay();
     resolveCurrentPlay = null;
   }
 }
 
-function playFile(src: string): Promise<void> {
+function playFile(src: string, volume = announcerVolume): Promise<void> {
   return new Promise((resolve) => {
     if (typeof window === "undefined" || !enabled) return resolve();
 
@@ -73,8 +74,9 @@ function playFile(src: string): Promise<void> {
     }
 
     const audio = new Audio(src);
+    audio.volume = volume;
     currentAudio = audio;
-    resolveCurrentPlay = resolve; // Guardamos la forma de resolver esta promesa
+    resolveCurrentPlay = resolve;
 
     const cleanup = () => {
       audio.onended = null;
@@ -104,7 +106,8 @@ async function processQueue() {
       if (task === "__pause__") {
         await new Promise((r) => setTimeout(r, PAUSE_MS));
       } else {
-        await playFile(task);
+        // Usamos el volumen actual (puede estar "ducked")
+        await playFile(task, announcerVolume);
       }
     }
   } catch (e) {
@@ -117,10 +120,41 @@ async function processQueue() {
   }
 }
 
+/** Baja el volumen del locutor para escuchar un mensaje de voz. */
+export async function playVoiceMessage(url: string) {
+  if (!enabled) return;
+
+  // 1. Ducking: Bajamos volumen del locutor si está hablando
+  announcerVolume = DUCK_VOLUME;
+  if (currentAudio) currentAudio.volume = DUCK_VOLUME;
+
+  // 2. Reproducir el mensaje de voz (no bloquea la cola del locutor)
+  const voice = new Audio(url);
+  voice.volume = 1.0;
+
+  return new Promise<void>((resolve) => {
+    voice.onended = () => {
+      // 3. Restaurar volumen al terminar
+      announcerVolume = NORMAL_VOLUME;
+      if (currentAudio) currentAudio.volume = NORMAL_VOLUME;
+      resolve();
+    };
+    voice.onerror = () => {
+      announcerVolume = NORMAL_VOLUME;
+      if (currentAudio) currentAudio.volume = NORMAL_VOLUME;
+      resolve();
+    };
+    voice.play().catch(() => {
+      announcerVolume = NORMAL_VOLUME;
+      if (currentAudio) currentAudio.volume = NORMAL_VOLUME;
+      resolve();
+    });
+  });
+}
+
 export function announceBall(ball: number) {
   if (!enabled) return;
-  stopAudio(); // Detiene y desbloquea el motor
-
+  stopAudio();
   const num = String(ball);
   queue = [`/audio/${letterOf(ball)}.mp3`, "__pause__", `/audio/${num}.mp3`];
   void processQueue();
@@ -154,7 +188,6 @@ export function playAllBallsDrawn() {
   void processQueue();
 }
 
-// Escuchar cambios de visibilidad para re-despertar el motor si el usuario vuelve a la pestaña
 if (typeof window !== "undefined") {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
