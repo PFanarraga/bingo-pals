@@ -295,9 +295,13 @@ export const setGameStatus = createServerFn({ method: "POST" })
       .eq("id", game.id);
 
     if (data.status === "FINISHED") {
-      const { deleteRoomStorage } = await import("./voice-chat");
-      const { data: room } = await db.from("rooms").select("code").eq("id", player.room_id).single();
-      if (room) void deleteRoomStorage(room.code);
+      try {
+        const { deleteRoomStorage } = await import("./voice-chat");
+        const { data: room } = await db.from("rooms").select("code").eq("id", player.room_id).single();
+        if (room) void deleteRoomStorage(room.code);
+      } catch (err) {
+        console.error("[Voice Cleanup] Error al limpiar Storage:", err);
+      }
     }
 
     await db
@@ -547,9 +551,13 @@ export const newGame = createServerFn({ method: "POST" })
     await initializeCardPool(game.id);
 
     // Limpiar audios de la partida anterior
-    const { deleteRoomStorage } = await import("./voice-chat");
-    const { data: room } = await db.from("rooms").select("code").eq("id", host.room_id).single();
-    if (room) void deleteRoomStorage(room.code);
+    try {
+      const { deleteRoomStorage } = await import("./voice-chat");
+      const { data: room } = await db.from("rooms").select("code").eq("id", host.room_id).single();
+      if (room) void deleteRoomStorage(room.code);
+    } catch (err) {
+      console.error("[Voice Cleanup] Error al limpiar Storage en nueva partida:", err);
+    }
 
     await db
       .from("rooms")

@@ -50,7 +50,7 @@ export async function deleteRoomStorage(roomCode: string) {
   const { data: files } = await supabase.storage.from(BUCKET).list(folder);
 
   if (files && files.length > 0) {
-    const paths = files.map(f => `${folder}/${file.name}`);
+    const paths = files.map(f => `${folder}/${f.name}`);
     await supabase.storage.from(BUCKET).remove(paths);
   }
 }
@@ -69,28 +69,35 @@ export function onVoiceMessage(roomCode: string, callback: (url: string, senderI
   };
 }
 
-/** Utilidad para grabar audio con límite de tiempo. */
+/** Utilidad para grabar audio con límite de tiempo. Solo funciona en el cliente. */
 export function createRecorder(onStop: (blob: Blob) => void) {
+  if (typeof window === "undefined" || !window.MediaRecorder) return null;
+
   let recorder: MediaRecorder | null = null;
   let chunks: Blob[] = [];
   let timer: ReturnType<typeof setTimeout>;
 
   const start = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    recorder = new MediaRecorder(stream);
-    chunks = [];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recorder = new MediaRecorder(stream);
+      chunks = [];
 
-    recorder.ondataavailable = (e) => chunks.push(e.data);
-    recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: "audio/webm" });
-      onStop(blob);
-      stream.getTracks().forEach(t => t.stop());
-    };
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        onStop(blob);
+        stream.getTracks().forEach(t => t.stop());
+      };
 
-    recorder.start();
+      recorder.start();
 
-    // Límite automático de 10 segundos
-    timer = setTimeout(() => stop(), MAX_VOICE_DURATION_MS);
+      // Límite automático de 10 segundos
+      timer = setTimeout(() => stop(), MAX_VOICE_DURATION_MS);
+    } catch (err) {
+      console.error("[Voice] Error al iniciar grabación:", err);
+      throw err;
+    }
   };
 
   const stop = () => {
@@ -100,5 +107,5 @@ export function createRecorder(onStop: (blob: Blob) => void) {
     }
   };
 
-  return { start, stop, isRecording: () => recorder?.state === "recording" };
+  return { start, stop };
 }

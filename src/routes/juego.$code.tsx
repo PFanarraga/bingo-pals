@@ -251,7 +251,6 @@ function GameScreen() {
   const startRecording = async () => {
     if (!session) return;
     try {
-      setRecording(true);
       recorderRef.current = createRecorder(async (blob) => {
         try {
           await uploadAndBroadcastVoice(blob, code, session.playerId);
@@ -259,6 +258,13 @@ function GameScreen() {
           toast.error("Error al enviar mensaje de voz");
         }
       });
+
+      if (!recorderRef.current) {
+        toast.error("Tu navegador no soporta grabación de voz");
+        return;
+      }
+
+      setRecording(true);
       await recorderRef.current.start();
     } catch (e) {
       setRecording(false);
