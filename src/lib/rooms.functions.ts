@@ -294,6 +294,12 @@ export const setGameStatus = createServerFn({ method: "POST" })
       .update(updates)
       .eq("id", game.id);
 
+    if (data.status === "FINISHED") {
+      const { deleteRoomStorage } = await import("./voice-chat");
+      const { data: room } = await db.from("rooms").select("code").eq("id", player.room_id).single();
+      if (room) void deleteRoomStorage(room.code);
+    }
+
     await db
       .from("rooms")
       .update({
@@ -539,6 +545,11 @@ export const newGame = createServerFn({ method: "POST" })
 
     const { initializeCardPool } = await import("@/lib/game.server");
     await initializeCardPool(game.id);
+
+    // Limpiar audios de la partida anterior
+    const { deleteRoomStorage } = await import("./voice-chat");
+    const { data: room } = await db.from("rooms").select("code").eq("id", host.room_id).single();
+    if (room) void deleteRoomStorage(room.code);
 
     await db
       .from("rooms")

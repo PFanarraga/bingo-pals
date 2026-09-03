@@ -14,11 +14,12 @@ import { useMarks } from "@/hooks/useMarks";
 import { claimBingo } from "@/lib/claims.functions";
 import { sessionForRoom, type PlayerSession } from "@/lib/session";
 import { isPatternAchieved, PATTERNS, type WinningPattern } from "@/lib/bingo";
-import { announceBall, isAudioEnabled, setAudioEnabled, unlockAudio, playBingoPressed, playWinnerConfirmed, playAllBallsDrawn } from "@/lib/audio";
-import { Volume2, VolumeX, Pause, Play, CheckCircle2, Loader2, Target } from "lucide-react";
+import { announceBall, isAudioEnabled, setAudioEnabled, unlockAudio, playBingoPressed, playWinnerConfirmed, playAllBallsDrawn, playVoiceMessage } from "@/lib/audio";
+import { Volume2, VolumeX, Pause, Play, CheckCircle2, Loader2, Target, Mic, MicOff } from "lucide-react";
 import { autoDrawBall } from "@/lib/balls.functions";
 import { setGameStatus, toggleReady, requestPause, handlePauseRequest } from "@/lib/rooms.functions";
 import { cn } from "@/lib/utils";
+import { createRecorder, onVoiceMessage, uploadAndBroadcastVoice } from "@/lib/voice-chat";
 
 export const Route = createFileRoute("/juego/$code")({
   head: () => ({
@@ -43,8 +44,11 @@ function GameScreen() {
   const [sound, setSound] = useState(true);
   const [activeCard, setActiveCard] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recordTimer, setRecordTimer] = useState(0);
   const lastBallRef = useRef<number | null>(null);
   const lastClaimRef = useRef<string | null>(null);
+  const recorderRef = useRef<any>(null);
 
   useEffect(() => {
     const found = sessionForRoom(code);
@@ -60,6 +64,27 @@ function GameScreen() {
     window.addEventListener("click", wake);
     return () => window.removeEventListener("click", wake);
   }, [code, navigate]);
+
+  // Suscripción a mensajes de voz
+  useEffect(() => {
+    if (!code) return;
+    const unsub = onVoiceMessage(code, (url) => {
+      void playVoiceMessage(url);
+    });
+    return unsub;
+  }, [code]);
+
+  // Cronómetro de grabación
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (recording) {
+      setRecordTimer(0);
+      interval = setInterval(() => {
+        setRecordTimer(prev => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [recording]);
 
   const state = useGameState(code, session?.playerId);
   const online = useHeartbeat(session?.playerId, session?.token);
@@ -223,6 +248,31 @@ function GameScreen() {
     }
   };
 
+  const startRecording = async () => {
+    if (!session) return;
+    try {
+      setRecording(true);
+      recorderRef.current = createRecorder(async (blob) => {
+        try {
+          await uploadAndBroadcastVoice(blob, code, session.playerId);
+        } catch (e) {
+          toast.error("Error al enviar mensaje de voz");
+        }
+      });
+      await recorderRef.current.start();
+    } catch (e) {
+      setRecording(false);
+      toast.error("Permiso de micrófono denegado");
+    }
+  };
+
+  const stopRecording = () => {
+    if (recorderRef.current) {
+      recorderRef.current.stop();
+      setRecording(false);
+    }
+  };
+
   const callBingo = async () => {
     if (!session || !state.game || !current) return;
     void unlockAudio();
@@ -381,10 +431,16 @@ function GameScreen() {
 
       <div className="bg-background/90 fixed inset-x-0 bottom-0 border-t px-3 py-4 backdrop-blur shadow-2xl">
         <div className="mx-auto max-w-md">
-          <div className="grid grid-cols-5 gap-3 items-stretch">
+          {recording && (
+            <div className="flex items-center justify-center gap-2 text-primary animate-pulse mb-3 bg-primary/10 py-2 rounded-full border border-primary/20">
+              <span className="h-2 w-2 bg-red-500 rounded-full" />
+              <span className="text-xs font-bold uppercase tracking-widest">Grabando voz: {recordTimer}s / 10s</span>
+            </div>
+          )}
+          <div className="grid grid-cols-6 gap-3 items-stretch">
             <Button
               className="h-16 text-2xl font-bold col-span-3 shadow-lg transition-all active:scale-95"
-              disabled={!canCallBingo || busy || state.game?.status === "FINISHED"}
+              disabled={!canCallBingo || busy || state.game?.status === "FINISHED" || recording}
               onClick={callBingo}
             >
               ¡BINGO!
@@ -396,7 +452,7 @@ function GameScreen() {
                 "h-16 flex-col gap-1 col-span-2 shadow-md transition-all active:scale-95",
                 !isHost && state.game?.status === "PAUSED" && "opacity-50"
               )}
-              disabled={busy || state.game?.status === "FINISHED" || (!isHost && state.game?.status === "PAUSED")}
+              disabled={busy || state.game?.status === "FINISHED" || (!isHost && state.game?.status === "PAUSED") || recording}
               onClick={handleTogglePause}
             >
               {state.game?.status === "PAUSED" ? (
@@ -410,6 +466,24 @@ function GameScreen() {
                   <span className="text-[10px] font-bold uppercase">{isHost ? "Pausar" : "Pausa"}</span>
                 </>
               )}
+            </Button>
+
+            <Button
+              variant={recording ? "default" : "outline"}
+              className={cn(
+                "h-16 flex-col gap-1 col-span-1 shadow-md transition-all active:scale-95",
+                recording && "bg-red-500 hover:bg-red-600 animate-pulse border-none text-white",
+                state.game?.status === "FINISHED" && "opacity-50"
+              )}
+              disabled={state.game?.status === "FINISHED" || busy}
+              onMouseDown={startRecording}
+              onMouseUp={stopRecording}
+              onTouchStart={startRecording}
+              onTouchEnd={stopRecording}
+              onMouseLeave={stopRecording}
+            >
+              {recording ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
+              <span className="text-[8px] font-bold uppercase">{recording ? "Soltar" : "Hablar"}</span>
             </Button>
           </div>
         </div>

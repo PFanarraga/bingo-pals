@@ -1,39 +1,39 @@
-# Restricción de Salas Simultáneas por Código
+# Mensajes de Voz con Ducking y Limpieza Inteligente
 
-He implementado una nueva capa de seguridad que impide que un código de creación normal sea utilizado para abrir múltiples salas al mismo tiempo.
+He implementado el sistema de mensajes de voz ("Push-to-Talk") para que los jugadores puedan interactuar de forma divertida durante el Bingo, con un sistema de sonido inteligente y limpieza automática de archivos.
 
 ## Cambios Realizados
 
-### 1. Vínculo Sala-Código
-- Se añadió una columna `created_by_code_id` a la tabla `rooms`.
-- Esto permite al sistema saber exactamente qué código "pagó" por la creación de cada sala.
+### 1. Sistema de "Ducking" de Audio ([audio.ts](file:///D:/bingo-pals/src/lib/audio.ts))
+- He mejorado el motor de sonido para que sea "respetuoso": cuando suena un mensaje de voz de un jugador, el locutor que canta las bolas **baja su volumen al 15%** automáticamente.
+- Una vez termina el mensaje de voz, el locutor vuelve a su volumen normal sin detenerse.
 
-### 2. Validación de Sala Activa
-- **Códigos Normales:** Al intentar crear una sala, el servidor ahora revisa si existe alguna otra sala abierta (`WAITING`, `PLAYING`, `PAUSED`) vinculada a ese código.
-- **Bloqueo:** Si hay una sala activa, la creación se rechaza con el mensaje: *"Este código ya tiene una sala activa. Finalízala para crear una nueva."*
-- **Código Maestro:** El código maestro (`PMFF2309`) está exento de esta regla y puede seguir creando infinitas salas simultáneas.
+### 2. Grabación y Rotación Inteligente ([voice-chat.ts](file:///D:/bingo-pals/src/lib/voice-chat.ts))
+- **Límite de 10s:** La grabación se corta automáticamente a los 10 segundos para no saturar.
+- **Rotación de 2 Audios:** Cada jugador puede tener un máximo de 2 mensajes de voz en el servidor. Al enviar el tercero, el sistema **borra automáticamente el más antiguo** de ese jugador.
+- **Transmisión en Vivo:** Los audios suenan instantáneamente en los dispositivos de todos los participantes de la sala.
+
+### 3. Limpieza Automática de Seguridad
+- El servidor ahora ejecuta una orden de "**borrado total**" del almacenamiento de la sala en dos momentos:
+  - Cuando el anfitrión finaliza la partida.
+  - Cuando se inicia una nueva partida en la misma sala.
+- Esto garantiza que no quede ningún rastro de audios grabados después de jugar.
+
+### 4. Nueva Interfaz de Micrófono ([juego.$code.tsx](file:///D:/bingo-pals/src/routes/juego.$code.tsx))
+- He añadido el botón "**Hablar**" en la barra inferior (icono de micrófono).
+- **Cómo usar:** Mantén pulsado para grabar (verás un contador y un aviso de "Grabando...") y suelta para enviar.
+- El diseño es totalmente responsive y funciona tanto con ratón como con el dedo en el móvil.
 
 ## Pasos para Activar (Manual)
 
-Como hemos modificado la base de datos para rastrear los códigos, por favor ejecuta:
-
-1.  **Actualizar DB:**
-    ```powershell
-    npx supabase db push --include-all
-    ```
-
-2.  **Sube los cambios:**
+1.  **Sube los cambios a tu nube:**
     ```powershell
     git add .
-    git commit -m "Implementada restricción de sala única por código normal"
+    git commit -m "Implementado Chat de Voz con Ducking y rotación de 2 audios"
     git push origin main
     ```
 
-## Cómo Probarlo:
-1. Genera un código normal.
-2. Úsalo para crear una sala.
-3. Intenta usar **ese mismo código** en otra pestaña para abrir una segunda sala -> El sistema te dará el error de "Sala activa".
-4. Finaliza la primera partida (como Host).
-5. Vuelve a intentar crear la sala con el mismo código -> Ahora te dejará pasar.
+2.  **RECUERDA EL STORAGE:**
+    Asegúrate de haber creado el bucket `voice_messages` en tu panel de **Supabase > Storage** con permisos de **SELECT** e **INSERT** públicos (como configuramos antes).
 
-¡Ahora tienes un control mucho más estricto y profesional sobre el uso de tus códigos! 🔒🎱✅
+¡Ya puedes disfrutar de la partida hablando con tus amigos! 🎤🔊🎱✨

@@ -2,7 +2,7 @@
 import { letterOf } from "./bingo";
 
 const PAUSE_MS = 450;
-const DUCK_VOLUME = 0.2;
+const DUCK_VOLUME = 0.15; // Volumen del locutor mientras suena un mensaje de voz
 const NORMAL_VOLUME = 1.0;
 
 let enabled = true;
@@ -106,7 +106,6 @@ async function processQueue() {
       if (task === "__pause__") {
         await new Promise((r) => setTimeout(r, PAUSE_MS));
       } else {
-        // Usamos el volumen actual (puede estar "ducked")
         await playFile(task, announcerVolume);
       }
     }
@@ -122,33 +121,25 @@ async function processQueue() {
 
 /** Baja el volumen del locutor para escuchar un mensaje de voz. */
 export async function playVoiceMessage(url: string) {
-  if (!enabled) return;
+  if (!enabled || !unlocked) return;
 
-  // 1. Ducking: Bajamos volumen del locutor si está hablando
+  // 1. Ducking: Bajamos volumen del locutor si está hablando o por hablar
   announcerVolume = DUCK_VOLUME;
   if (currentAudio) currentAudio.volume = DUCK_VOLUME;
 
-  // 2. Reproducir el mensaje de voz (no bloquea la cola del locutor)
+  // 2. Reproducir el mensaje de voz (independiente de la cola del locutor)
   const voice = new Audio(url);
   voice.volume = 1.0;
 
   return new Promise<void>((resolve) => {
-    voice.onended = () => {
-      // 3. Restaurar volumen al terminar
+    const end = () => {
       announcerVolume = NORMAL_VOLUME;
       if (currentAudio) currentAudio.volume = NORMAL_VOLUME;
       resolve();
     };
-    voice.onerror = () => {
-      announcerVolume = NORMAL_VOLUME;
-      if (currentAudio) currentAudio.volume = NORMAL_VOLUME;
-      resolve();
-    };
-    voice.play().catch(() => {
-      announcerVolume = NORMAL_VOLUME;
-      if (currentAudio) currentAudio.volume = NORMAL_VOLUME;
-      resolve();
-    });
+    voice.onended = end;
+    voice.onerror = end;
+    voice.play().catch(end);
   });
 }
 
