@@ -1,32 +1,31 @@
-# Gestión y Reactivación de Códigos
+# Expansión a 100 Jugadores y Tour Interactivo
 
-He mejorado el sistema de gestión de códigos de creación para que el administrador pueda tener un control total sobre los códigos vencidos o agotados, permitiendo su reactivación instantánea.
+He implementado el aumento de capacidad del servidor y un sistema de tutorial dinámico mediante viñetas flotantes que señalan los elementos reales de la interfaz.
 
 ## Cambios Realizados
 
-### 1. Historial Completo de Códigos
-- El panel de gestión ahora muestra todos los códigos generados en el pasado, no solo los que están actualmente activos.
-- Se añadieron etiquetas visuales de color rojo y ámbar para identificar rápidamente códigos **VENCIDOS** o **AGOTADOS**.
-- Se muestra el tiempo exacto que ha pasado desde el vencimiento de forma legible.
+### 1. Capacidad para 100 Jugadores
+- Se actualizó el motor de servidor (`game.server.ts`) para generar un pool de **300 cartones únicos** al crear una partida.
+- Esto permite que hasta 100 jugadores participen simultáneamente con el máximo de 3 cartones cada uno sin riesgo de duplicados.
 
-### 2. Función de Reactivación
-- Se implementó una nueva lógica en el servidor que permite tomar un código existente y actualizar sus límites.
-- Al reactivar un código, su contador de usos vuelve a cero, permitiendo que sea utilizado nuevamente como si fuera nuevo.
+### 2. Tour Interactivo con Viñetas ([GuidedTour.tsx](file:///D:/bingo-pals/src/components/ui/GuidedTour.tsx))
+- He creado un sistema de "**Spotlight**" (foco) que oscurece la pantalla e ilumina el elemento que se está explicando.
+- Las explicaciones aparecen en viñetas flotantes con botones de "Siguiente" y "Atrás".
 
-### 3. Interfaz de Usuario Mejorada ([sala.$code.tsx](file:///D:/bingo-pals/src/routes/sala.$code.tsx))
-- **Botón "ACTIVAR":** Los códigos que ya no son válidos ahora muestran un botón de activación.
-- **Flujo de Edición:** Al reactivar, se abre el formulario de configuración para que el administrador decida los nuevos límites de días y partidas.
+### 3. Tutoriales Configurados
+- **En Inicio:** Explica el nombre, código de sala, selección de cartones y código de creación.
+- **En Sala de Espera:** Explica la lista de jugadores, la gestión de cartones y la importancia del botón de "**Listo**".
+- **Botón de Ayuda:** El icono `?` en la pantalla principal ahora reinicia ambos tutoriales para que el usuario pueda volver a verlos.
 
 ## Cómo verificarlo
 
 1.  **Sube los cambios:**
     ```powershell
     git add .
-    git commit -m "Mejora: Gestión y reactivación de códigos vencidos"
+    git commit -m "Mejora: Capacidad 100 jugadores y Tutorial interactivo con viñetas"
     git push origin main
     ```
-2.  **Accede como Administrador:** Entra en una sala con tu Código Maestro.
-3.  **Gestiona tus Códigos:** Abre el modal de generación y pulsa el icono de historial (reloj/lista).
-4.  **Reactiva:** Busca un código antiguo y pulsa "**ACTIVAR**". Configura nuevos límites y confirma. El código volverá a estar disponible inmediatamente para crear nuevas salas.
+2.  **Primera Visita:** Entra al sitio (preferiblemente en Incógnito o tras pulsar el botón `?`). Verás cómo el sistema te va llevando de la mano por cada campo del formulario.
+3.  **Sala de Espera:** Crea una sala y verás el segundo tour explicando los controles de anfitrión y la lista de jugadores.
 
-¡Ahora tienes el control total para reutilizar tus códigos de acceso cuando lo necesites! 🔄🔐✅
+¡Tu Bingo ahora es una plataforma profesional lista para grandes grupos! 🚀🎯🎱✨

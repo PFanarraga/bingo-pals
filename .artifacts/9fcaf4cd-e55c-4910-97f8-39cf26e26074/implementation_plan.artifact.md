@@ -1,48 +1,55 @@
-# Plan: Ajuste de Parámetros por Defecto y Optimización de Audio
+# Plan: Expansión a 100 Jugadores y Tutorial Interactivo
 
-Este plan establece los nuevos valores iniciales solicitados para las partidas y ajusta el motor de audio para que las locuciones se sincronicen correctamente con velocidades de juego rápidas.
+Este plan aumenta la capacidad de la sala a 100 jugadores (generando un pool de 300 cartones únicos) e implementa un nuevo sistema de tutorial interactivo mediante viñetas flotantes (tooltips) que señalan elementos reales de la interfaz.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Nuevos Valores por Defecto:**
->   - Pozo inicial: **S/. 10.00**
->   - Modo de victoria: **Cartón Lleno (FULL)**
->   - Velocidad: **4 segundos por bola**
-> - **Optimización de Audio:** El sistema acelerará automáticamente la velocidad de reproducción de la voz cuando el intervalo sea bajo (3-4s) para asegurar que la locución termine antes de que salga la siguiente bola.
+> - **Capacidad:** El pool de cartones pre-generados pasará de 30 a **300**. Esto permitirá hasta 100 jugadores por sala (3 cartones cada uno).
+> - **Tutorial:** Se sustituirá el modal de diapositivas por un sistema de "Tour Guiado" que resaltará los botones y campos de entrada reales.
+> - **Alcance del Tutorial:** Cubrirá la Pantalla de Inicio y la Sala de Espera.
 
 ## Pasos Propuestos
 
-### 1. Lógica de Creación de Sala
+### 1. Escalabilidad de Servidor
 
-#### [MODIFY] [rooms.functions.ts](file:///D:/bingo-pals/src/lib/rooms.functions.ts)
-- Actualizar el comando `insert` en la función `createRoom` para incluir los nuevos valores predeterminados:
-  - `prize: 10`
-  - `winning_pattern: 'FULL'`
-  - `ball_interval: 4`
+#### [MODIFY] [game.server.ts](file:///D:/bingo-pals/src/lib/game.server.ts)
+- Actualizar `initializeCardPool` para generar **300 cartones** únicos por defecto al crear una partida.
 
-### 2. Motor de Audio Dinámico
+### 2. Tutorial Interactivo (Tour)
 
-#### [MODIFY] [audio.ts](file:///D:/bingo-pals/src/lib/audio.ts)
-- Añadir una variable global `announcerSpeed` para controlar la tasa de reproducción.
-- Implementar la función `setAnnouncerSpeed(speed)` para actualizar este valor.
-- Aplicar `audio.playbackRate` en la función interna `playFile`.
+#### [NEW] [GuidedTour.tsx](file:///D:/bingo-pals/src/components/ui/GuidedTour.tsx)
+Crearemos un componente que maneje una secuencia de pasos. Cada paso tendrá:
+- Un selector CSS para identificar el elemento a resaltar.
+- Un texto explicativo.
+- Posicionamiento automático (arriba/abajo del elemento).
 
-### 3. Sincronización en el Juego
+**Pasos en Pantalla de Inicio:**
+1. Input de nombre: "Selecciona tu nombre de usuario".
+2. Input de código: "Aquí puedes colocar el número de sala para unirte".
+3. Botones de cartones: "Elige con cuántos cartones quieres jugar".
+4. Código de creación: "Si tienes un código maestro o adquirido, ponlo aquí".
 
-#### [MODIFY] [juego.$code.tsx](file:///D:/bingo-pals/src/routes/juego.$code.tsx)
-- Al cargar el estado del juego, calcular la velocidad necesaria según el `ball_interval`:
-  - Si interval <= 3s → Velocidad 1.4x
-  - Si interval <= 4s → Velocidad 1.2x
-  - En otros casos → Velocidad 1.0x (normal)
-- Llamar a `setAnnouncerSpeed` con el valor calculado.
+**Pasos en Sala de Espera:**
+1. Lista de jugadores: "Aquí ves quién está conectado y sus cartones".
+2. Botón Listo: "Pulsa aquí cuando estés preparado para empezar".
+3. Selectores de Host (si aplica): "Configura el modo y velocidad aquí".
+
+### 3. Integración de Componentes
+
+#### [MODIFY] [index.tsx](file:///D:/bingo-pals/src/routes/index.tsx)
+- Añadir IDs o clases específicas a los elementos de la interfaz para que el tutorial pueda localizarlos.
+- Integrar el componente `GuidedTour` específico para la Home.
+
+#### [MODIFY] [sala.$code.tsx](file:///D:/bingo-pals/src/routes/sala.$code.tsx)
+- Añadir identificadores a la lista de jugadores y controles.
+- Integrar el componente `GuidedTour` específico para la Sala.
 
 ## Plan de Verificación
 
-### Pruebas de Configuración
-1. Crear una sala nueva y verificar que el pozo dice 10, el modo es "Cartón Lleno" y la velocidad es 4s sin tocar nada.
+### Pruebas de Carga
+1. Crear una sala y verificar en el Table Editor de Supabase que se han insertado 300 cartones en `game_card_pool`.
 
-### Pruebas de Audio
-1. Iniciar el juego con velocidad 4s.
-2. Verificar que la voz del locutor suena ligeramente más rápida y "encaja" bien antes de que aparezca el siguiente número.
-3. Cambiar la velocidad a 10s y verificar que la voz vuelve a su ritmo normal.
+### Pruebas de UX
+1. Entrar por primera vez y verificar que las viñetas flotantes aparecen señalando los campos correctos.
+2. Completar el tour y verificar que no vuelve a aparecer tras refrescar.

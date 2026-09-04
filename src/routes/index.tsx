@@ -10,6 +10,7 @@ import { saveSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { unlockAudio } from "@/lib/audio";
 import { TutorialModal } from "@/components/ui/TutorialModal";
+import { GuidedTour, type TourStep } from "@/components/ui/GuidedTour";
 import { HelpCircle } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -38,6 +39,29 @@ function Home() {
   const [creationCode, setCreationCode] = useState("");
   const [count, setCount] = useState(1);
   const [busy, setBusy] = useState(false);
+
+  const homeTourSteps: TourStep[] = [
+    {
+      targetId: "input-name",
+      title: "Tu Identidad",
+      content: "Selecciona un nombre de usuario para identificarte en la partida.",
+    },
+    {
+      targetId: "input-room-code",
+      title: "Unirse a una Sala",
+      content: "Aquí puedes colocar el número de sala si deseas unirte a una sala ya creada.",
+    },
+    {
+      targetId: "selector-cards",
+      title: "Tus Cartones",
+      content: "Elige con cuántos cartones quieres participar (puedes jugar hasta con 3).",
+    },
+    {
+      targetId: "input-creation-code",
+      title: "Crear Sala",
+      content: "Si deseas ser anfitrión, introduce aquí tu código maestro o el código adquirido vía WhatsApp.",
+    }
+  ];
 
   const enter = async () => {
     if (name.trim().length < 2) {
@@ -99,7 +123,7 @@ function Home() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-6 px-5 py-10">
-      <TutorialModal />
+      <GuidedTour steps={homeTourSteps} tourKey="home" />
       <header className="text-center relative">
         <div className="absolute right-0 -top-2">
           <Button
@@ -107,7 +131,8 @@ function Home() {
             size="icon"
             className="text-muted-foreground hover:bg-primary/10"
             onClick={() => {
-              localStorage.removeItem("bingo75:tutorial_completed");
+              localStorage.removeItem("tour_completed:home");
+              localStorage.removeItem("tour_completed:lobby");
               window.location.reload();
             }}
           >
@@ -122,7 +147,7 @@ function Home() {
       </header>
 
       <section className="panel space-y-4 p-5">
-        <div className="space-y-1.5">
+        <div id="input-name" className="space-y-1.5">
           <Label htmlFor="name">Tu nombre</Label>
           <Input
             id="name"
@@ -133,7 +158,7 @@ function Home() {
           />
         </div>
 
-        <div className="space-y-1.5">
+        <div id="input-room-code" className="space-y-1.5">
           <Label htmlFor="code">Código de sala</Label>
           <Input
             id="code"
@@ -145,7 +170,7 @@ function Home() {
           />
         </div>
 
-        <div className="space-y-1.5">
+        <div id="selector-cards" className="space-y-1.5">
           <Label>Cartones</Label>
           <div className="grid grid-cols-3 gap-2">
             {[1, 2, 3].map((n) => (
@@ -171,7 +196,7 @@ function Home() {
 
       <section className="panel space-y-3 p-5 text-center">
         <p className="text-muted-foreground text-sm font-medium">¿Vas a organizar la partida?</p>
-        <div className="space-y-1.5 text-left">
+        <div id="input-creation-code" className="space-y-1.5 text-left">
           <Label htmlFor="creationCode">Código de Creación</Label>
           <Input
             id="creationCode"

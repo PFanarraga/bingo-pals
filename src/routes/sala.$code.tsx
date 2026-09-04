@@ -18,6 +18,7 @@ import { playIntro, unlockAudio } from "@/lib/audio";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { GuidedTour, type TourStep } from "@/components/ui/GuidedTour";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -301,6 +302,32 @@ function WaitingRoom() {
   const [busy, setBusy] = useState(false);
   const [localInterval, setLocalInterval] = useState<number | null>(null);
 
+  const lobbyTourSteps: TourStep[] = [
+    {
+      targetId: "player-list",
+      title: "Jugadores Conectados",
+      content: "Aquí puedes ver quién está en la sala y cuántos cartones tiene cada uno.",
+    },
+    {
+      targetId: "card-selection",
+      title: "Gestionar Cartones",
+      content: "Puedes cambiar tus números o la cantidad de cartones antes de empezar.",
+    },
+    {
+      targetId: "ready-button",
+      title: "Estado de Preparación",
+      content: "¡Es fundamental! Pulsa aquí cuando estés listo. El juego solo empezará cuando todos lo estén.",
+    }
+  ];
+
+  if (session?.isHost) {
+    lobbyTourSteps.push({
+      targetId: "host-config",
+      title: "Configuración de Partida",
+      content: "Como anfitrión, puedes ajustar el pozo, el modo de juego y la velocidad del sorteo.",
+    });
+  }
+
   useEffect(() => {
     const found = sessionForRoom(code);
     if (!found) {
@@ -409,6 +436,7 @@ function WaitingRoom() {
 
   return (
     <main className="mx-auto w-full max-w-md space-y-5 px-4 py-6">
+      <GuidedTour steps={lobbyTourSteps} tourKey="lobby" />
       <header className="text-center">
         <h1 className="font-display text-primary text-4xl">🎱 BINGO 75</h1>
         {isHost && (
@@ -434,7 +462,7 @@ function WaitingRoom() {
         )}
       </header>
 
-      <section className="panel p-4">
+      <section id="player-list" className="panel p-4">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-2xl">Jugadores</h2>
           <span className="font-display text-primary text-2xl">{state.players.length}</span>
@@ -468,7 +496,7 @@ function WaitingRoom() {
         </ul>
       </section>
 
-      <section className="space-y-3">
+      <section id="card-selection" className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-2xl">Tus cartones</h2>
           <div className="flex gap-1.5">
@@ -521,7 +549,7 @@ function WaitingRoom() {
       </section>
 
       {isHost ? (
-        <section className="panel space-y-4 p-4">
+        <section id="host-config" className="panel space-y-4 p-4">
           {isAuthorizedAdmin && (
             <div className="border-b border-white/10 pb-4 mb-2">
               <CreationCodeModal playerId={session!.playerId} token={session!.token} />
@@ -610,6 +638,7 @@ function WaitingRoom() {
             </div>
 
             <Button
+              id="ready-button"
               variant={state.players.find(p => p.id === session?.playerId)?.is_ready ? "default" : "outline"}
               className={cn("h-14 w-full text-lg", state.players.find(p => p.id === session?.playerId)?.is_ready && "bg-green-600 hover:bg-green-700")}
               disabled={busy || state.players.find(p => p.id === session?.playerId)?.is_ready}
@@ -641,8 +670,9 @@ function WaitingRoom() {
           </div>
         </section>
       ) : (
-        <div className="space-y-4">
+        <div id="ready-section" className="space-y-4">
           <Button
+            id="ready-button"
             variant={state.players.find(p => p.id === session?.playerId)?.is_ready ? "default" : "outline"}
             className={cn("h-14 w-full text-lg", state.players.find(p => p.id === session?.playerId)?.is_ready && "bg-green-600 hover:bg-green-700")}
             disabled={busy || state.players.find(p => p.id === session?.playerId)?.is_ready}

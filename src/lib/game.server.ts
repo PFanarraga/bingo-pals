@@ -78,8 +78,8 @@ export async function getGame(gameId: string): Promise<GameRow> {
   return data as GameRow;
 }
 
-/** Inicializa un pool de 30 cartones únicos para una partida. */
-export async function initializeCardPool(gameId: string, size = 30): Promise<void> {
+/** Inicializa un pool de 300 cartones únicos para una partida (Soporta 100 jugadores). */
+export async function initializeCardPool(gameId: string, size = 300): Promise<void> {
   const pool = new Set<string>();
   const rows: { game_id: string; numbers: number[] }[] = [];
 
