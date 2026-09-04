@@ -285,7 +285,7 @@ function GameScreen() {
               {sound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
             </Button>
             <AllBallsModal drawn={drawn} />
-            <PlayersPanel players={state.players} />
+            <PlayersPanel players={state.players} allCards={state.allCards} />
           </div>
         </div>
 

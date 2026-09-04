@@ -42,6 +42,7 @@ export type GameState = {
   players: Player[];
   game: Game | null;
   cards: Card[];
+  allCards: Card[]; // Añadido para el anfitrión
   claims: Claim[];
   winners: Winner[];
   loading: boolean;
@@ -55,6 +56,7 @@ export function useGameState(code: string, playerId?: string): GameState {
   const [players, setPlayers] = useState<Player[]>([]);
   const [game, setGame] = useState<Game | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
+  const [allCards, setAllCards] = useState<Card[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [winners, setWinners] = useState<Winner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,12 +94,15 @@ export function useGameState(code: string, playerId?: string): GameState {
           .limit(1)
           .maybeSingle(),
       ]);
-      setPlayers((playersRes.data ?? []) as Player[]);
+      const currentPlayers = (playersRes.data ?? []) as Player[];
+      setPlayers(currentPlayers);
       const currentGame = (gameRes.data ?? null) as Game | null;
       setGame(currentGame);
 
       if (currentGame) {
-        const [cardsRes, claimsRes, winnersRes] = await Promise.all([
+        const isHost = currentPlayers.find(p => p.id === playerId)?.is_host;
+
+        const [cardsRes, allCardsRes, claimsRes, winnersRes] = await Promise.all([
           playerId
             ? supabase
                 .from("cards")
@@ -105,6 +110,12 @@ export function useGameState(code: string, playerId?: string): GameState {
                 .eq("game_id", currentGame.id)
                 .eq("player_id", playerId)
                 .order("card_number")
+            : Promise.resolve({ data: [] as Card[] }),
+          isHost
+            ? supabase
+                .from("cards")
+                .select("id, player_id")
+                .eq("game_id", currentGame.id)
             : Promise.resolve({ data: [] as Card[] }),
           supabase
             .from("bingo_claims")
@@ -117,10 +128,12 @@ export function useGameState(code: string, playerId?: string): GameState {
             .eq("game_id", currentGame.id),
         ]);
         setCards((cardsRes.data ?? []) as Card[]);
+        setAllCards((allCardsRes.data ?? []) as Card[]);
         setClaims((claimsRes.data ?? []) as Claim[]);
         setWinners((winnersRes.data ?? []) as Winner[]);
       } else {
         setCards([]);
+        setAllCards([]);
         setClaims([]);
         setWinners([]);
       }
@@ -156,5 +169,5 @@ export function useGameState(code: string, playerId?: string): GameState {
     return () => window.clearInterval(id);
   }, [load]);
 
-  return { room, players, game, cards, claims, winners, loading, error, refresh: () => void load() };
+  return { room, players, game, cards, allCards, claims, winners, loading, error, refresh: () => void load() };
 }

@@ -1,6 +1,9 @@
-# Tareas: Restricción de Salas Simultáneas
+# Tareas: Gestión de Anfitrión y Estabilidad
 
-- [x] Crear migración para vincular salas con códigos (`created_by_code_id`)
-- [x] Implementar validación de sala activa en `createRoom`
-- [ ] Aplicar migración a Supabase (`npx supabase db push --include-all`)
-- [x] Verificar funcionamiento de restricción vs Código Maestro
+- [x] Mejorar visibilidad del anfitrión (conteo de cartones)
+    - [x] Actualizar `useGameState.ts` para obtener cartones de todos si es host
+    - [x] Actualizar `PlayersPanel.tsx` para mostrar el conteo
+- [x] Hacer el estado "Listo" permanente en `sala.$code.tsx`
+- [x] Implementar liberación automática de códigos en `rooms.functions.ts`
+- [x] Añadir mensaje de contacto WhatsApp en `index.tsx`
+- [x] Verificar cambios

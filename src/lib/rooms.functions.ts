@@ -50,14 +50,36 @@ export const createRoom = createServerFn({ method: "POST" })
       }
 
       // Verificar si ya tiene una sala activa (exclusivo para códigos normales)
-      const { count: activeRooms } = await db
+      const { data: activeRoomsList } = await db
         .from("rooms")
-        .select("id", { count: "exact", head: true })
+        .select("id, status")
         .eq("created_by_code_id", codeRow.id)
         .neq("status", "FINISHED");
 
-      if ((activeRooms ?? 0) > 0) {
-        throw new Error("Este código ya tiene una sala activa. Finalízala para crear una nueva.");
+      if (activeRoomsList && activeRoomsList.length > 0) {
+        // Verificar si la sala realmente tiene jugadores conectados
+        let hasActivePlayers = false;
+        for (const room of activeRoomsList) {
+          const { count } = await db
+            .from("players")
+            .select("id", { count: "exact", head: true })
+            .eq("room_id", room.id)
+            .eq("connected", true);
+
+          if ((count ?? 0) > 0) {
+            hasActivePlayers = true;
+            break;
+          }
+        }
+
+        if (hasActivePlayers) {
+          throw new Error("Este código ya tiene una sala activa con jugadores. Finalízala para crear una nueva.");
+        }
+
+        // Si no hay jugadores activos, marcamos las salas anteriores como terminadas para liberar el código
+        const roomIds = activeRoomsList.map(r => r.id);
+        await db.from("rooms").update({ status: "FINISHED" }).in("id", roomIds);
+        await db.from("games").update({ status: "FINISHED" }).in("room_id", roomIds);
       }
 
       // Verificar vencimiento

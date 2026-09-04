@@ -1,38 +1,46 @@
-# Plan: Chat de Voz Inteligente (10s Max y Rotación de 2 Audios)
+# Plan: Mejoras de Gestión de Anfitrión y Estabilidad de Salas
 
-Este plan implementa un sistema de mensajes de voz optimizado con rotación de archivos y "Ducking" de audio para una experiencia de juego interactiva.
+Este plan detalla las modificaciones para mejorar la visibilidad del anfitrión, asegurar el estado de los jugadores y resolver el bloqueo de códigos de creación por salas inactivas.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Límite de tiempo:** La grabación se detendrá automáticamente a los **10 segundos**.
-> - **Rotación de Audios:** Cada jugador podrá tener un máximo de **2 audios activos** en el servidor. Al enviar el tercero, el sistema borrará automáticamente el más antiguo de ese jugador.
-> - **Borrado Final:** Al terminar la partida, se eliminarán todos los audios de la sala del Storage.
-> - **Permisos:** Se solicitará acceso al micrófono en el primer uso.
+> - El botón "**MARCAR LISTO**" se volverá permanente una vez pulsado para evitar cambios constantes.
+> - El sistema de creación de salas será más permisivo: si una sala asociada a un código no tiene jugadores conectados, se permitirá crear una nueva sala ignorando el bloqueo anterior.
+> - Se añadirá información de contacto de WhatsApp en la pantalla principal.
 
 ## Pasos Propuestos
 
-### 1. Motor de Audio con Ducking (`src/lib/audio.ts`)
-- Implementar `announcerVolume` variable.
-- Función `playVoiceMessage(url)`: baja el volumen del locutor al 20%, reproduce la voz y restaura el volumen al terminar.
+### 1. Visibilidad del Anfitrión
 
-### 2. Gestión de Almacenamiento y Voz (`src/lib/voice-chat.ts`)
-- **Grabación**: Interfaz con `MediaRecorder` y límite de 10s.
-- **Rotación (2 archivos)**: Antes de subir un audio nuevo, el sistema consultará cuántos audios tiene el jugador. Si ya tiene 2, borrará el más antiguo antes de subir el nuevo.
-- **Broadcast**: Emitir la URL del audio vía Supabase Realtime.
+#### [MODIFY] [useGameState.ts](file:///D:/bingo-pals/src/hooks/useGameState.ts)
+- Si el usuario es el anfitrión, el sistema descargará el conteo de cartones por cada jugador para mostrarlo en el panel.
 
-### 3. Limpieza de Fin de Juego (`src/lib/rooms.functions.ts` y `src/lib/game.server.ts`)
-- Implementar `cleanupRoomStorage(roomCode)` en el servidor.
-- Ejecutar limpieza automática al cambiar estado a `FINISHED` o iniciar `newGame`.
+#### [MODIFY] [PlayersPanel.tsx](file:///D:/bingo-pals/src/components/host/PlayersPanel.tsx)
+- Mostrar junto al nombre de cada jugador el número de cartones que tiene asignados (ej: "Pedro (3 cartones)").
 
-### 4. Interfaz de Juego (`src/routes/juego.$code.tsx`)
-- Añadir botón de **Micrófono** táctil.
-- Visualización de estado: "Grabando (0:05 / 0:10)".
-- Suscripción para reproducción automática de mensajes de otros jugadores.
+### 2. Control de Estado "Listo"
+
+#### [MODIFY] [sala.$code.tsx](file:///D:/bingo-pals/src/routes/sala.$code.tsx)
+- Deshabilitar el botón de "**LISTO**" una vez que el jugador lo haya pulsado con éxito. El texto cambiará a "**¡YA ESTÁS LISTO!**".
+
+### 3. Resolución de Bloqueo de Salas Inactivas
+
+#### [MODIFY] [rooms.functions.ts](file:///D:/bingo-pals/src/lib/rooms.functions.ts)
+- **`createRoom`**: Mejorar la validación de salas activas. Si el código ya tiene una sala pero esta tiene **0 jugadores conectados**, el sistema permitirá crear la nueva sala automáticamente (liberando el código).
+- Implementar una limpieza de seguridad: si una sala no tiene actividad detectada (vía heartbeat), se considerará elegible para ser reemplazada.
+
+### 4. Información en Pantalla Principal
+
+#### [MODIFY] [index.tsx](file:///D:/bingo-pals/src/routes/index.tsx)
+- Añadir un banner informativo o mensaje debajo del campo de "Código de Creación" con los números de WhatsApp indicados para soporte y adquisición de códigos.
 
 ## Plan de Verificación
 
-### Pruebas de Funcionamiento
-1. Enviar 3 audios seguidos -> Verificar en Supabase que solo quedan los 2 últimos.
-2. Verificar que el audio del Bingo baja su volumen mientras suena la voz.
-3. Finalizar partida y confirmar que el Storage se vacía completamente.
+### Pruebas de Gestión
+1. Entrar como Host y verificar que en el panel de jugadores aparece el número de cartones de cada invitado.
+2. Como jugador, pulsar "Listo" y verificar que el botón queda bloqueado.
+
+### Pruebas de Estabilidad
+1. Crear una sala con un código, cerrar el navegador de todos los participantes.
+2. Intentar crear una nueva sala con el mismo código -> El sistema debe permitirlo al detectar la sala anterior vacía.

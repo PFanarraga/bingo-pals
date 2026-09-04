@@ -154,7 +154,7 @@ function Home() {
       </section>
 
       <section className="panel space-y-3 p-5 text-center">
-        <p className="text-muted-foreground text-sm">¿Vas a organizar la partida?</p>
+        <p className="text-muted-foreground text-sm font-medium">¿Vas a organizar la partida?</p>
         <div className="space-y-1.5 text-left">
           <Label htmlFor="creationCode">Código de Creación</Label>
           <Input
@@ -163,11 +163,37 @@ function Home() {
             value={creationCode}
             maxLength={20}
             placeholder="Introduce tu código"
-            className="text-center font-mono tracking-widest uppercase"
+            className="text-center font-mono tracking-widest uppercase border-primary/30"
             onChange={(e) => setCreationCode(e.target.value.toUpperCase())}
           />
         </div>
-        <Button variant="outline" className="h-12 w-full" disabled={busy} onClick={create}>
+
+        <div className="bg-primary/5 rounded-lg p-3 border border-primary/10">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-1 font-bold">Adquiere tu código</p>
+          <p className="text-xs text-primary font-medium leading-relaxed">
+            Para obtener un código de creación de sala, contáctanos vía WhatsApp:
+          </p>
+          <div className="flex flex-col gap-1 mt-2">
+            <a
+              href="https://wa.me/51969841802"
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm font-display tracking-wider hover:underline"
+            >
+              +51 969 841 802
+            </a>
+            <a
+              href="https://wa.me/51935149666"
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm font-display tracking-wider hover:underline"
+            >
+              +51 935 149 666
+            </a>
+          </div>
+        </div>
+
+        <Button variant="outline" className="h-12 w-full mt-2" disabled={busy} onClick={create}>
           CREAR SALA
         </Button>
       </section>

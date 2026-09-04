@@ -544,19 +544,19 @@ function WaitingRoom() {
             <Button
               variant={state.players.find(p => p.id === session?.playerId)?.is_ready ? "default" : "outline"}
               className={cn("h-14 w-full text-lg", state.players.find(p => p.id === session?.playerId)?.is_ready && "bg-green-600 hover:bg-green-700")}
-              disabled={busy}
+              disabled={busy || state.players.find(p => p.id === session?.playerId)?.is_ready}
               onClick={async () => {
                 const me = state.players.find(p => p.id === session?.playerId);
                 if (!session || !me) return;
                 setBusy(true);
                 try {
-                  await toggleReady({ data: { playerId: session.playerId, token: session.token, ready: !me.is_ready } });
+                  await toggleReady({ data: { playerId: session.playerId, token: session.token, ready: true } });
                 } finally {
                   setBusy(false);
                 }
               }}
             >
-              {state.players.find(p => p.id === session?.playerId)?.is_ready ? "¡ESTOY LISTO!" : "MARCAR LISTO (HOST)"}
+              {state.players.find(p => p.id === session?.playerId)?.is_ready ? "¡YA ESTÁS LISTO!" : "MARCAR LISTO (HOST)"}
             </Button>
 
             {!allReady && (
@@ -577,20 +577,20 @@ function WaitingRoom() {
           <Button
             variant={state.players.find(p => p.id === session?.playerId)?.is_ready ? "default" : "outline"}
             className={cn("h-14 w-full text-lg", state.players.find(p => p.id === session?.playerId)?.is_ready && "bg-green-600 hover:bg-green-700")}
-            disabled={busy}
+            disabled={busy || state.players.find(p => p.id === session?.playerId)?.is_ready}
             onClick={async () => {
               const me = state.players.find(p => p.id === session?.playerId);
               if (!session || !me) return;
               void unlockAudio();
               setBusy(true);
               try {
-                await toggleReady({ data: { playerId: session.playerId, token: session.token, ready: !me.is_ready } });
+                await toggleReady({ data: { playerId: session.playerId, token: session.token, ready: true } });
               } finally {
                 setBusy(false);
               }
             }}
           >
-            {state.players.find(p => p.id === session?.playerId)?.is_ready ? "¡ESTOY LISTO!" : "MARCAR LISTO"}
+            {state.players.find(p => p.id === session?.playerId)?.is_ready ? "¡YA ESTÁS LISTO!" : "MARCAR LISTO"}
           </Button>
           <p className="text-muted-foreground text-center text-sm">
             {allReady ? "¡Todos listos! El anfitrión ya puede iniciar." : `Esperando a ${unreadyPlayers.length} jugadores...`}
