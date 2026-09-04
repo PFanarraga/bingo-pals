@@ -383,12 +383,14 @@ function WaitingRoom() {
   }
 
   const share = async () => {
-    const text = `Únete a mi Bingo 75 con el código ${code.toUpperCase()}`;
+    const url = `${window.location.origin}/unirse/${code.toUpperCase()}`;
+    const text = `🎟️ ¡Únete a mi Bingo 75 en vivo!\n\nEntra directo aquí:\n${url}\n\nCódigo de sala: ${code.toUpperCase()}`;
+
     if (navigator.share) {
       await navigator.share({ title: "Bingo 75", text }).catch(() => undefined);
     } else {
-      await navigator.clipboard.writeText(text).catch(() => undefined);
-      toast.success("Código copiado");
+      await navigator.clipboard.writeText(url).catch(() => undefined);
+      toast.success("Enlace de invitación copiado");
     }
   };
 
@@ -451,11 +453,12 @@ function WaitingRoom() {
                 variant="secondary"
                 size="sm"
                 onClick={async () => {
-                  await navigator.clipboard.writeText(code.toUpperCase()).catch(() => undefined);
-                  toast.success("Código copiado");
+                  const url = `${window.location.origin}/unirse/${code.toUpperCase()}`;
+                  await navigator.clipboard.writeText(url).catch(() => undefined);
+                  toast.success("Enlace directo copiado");
                 }}
               >
-                <Copy className="mr-1 h-4 w-4" /> Copiar
+                <Copy className="mr-1 h-4 w-4" /> Copiar Enlace
               </Button>
             </div>
           </>

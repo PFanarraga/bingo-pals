@@ -1,13 +1,8 @@
-# Tareas: Expansión a 100 Jugadores y Tutorial Interactivo
+# Tareas: Enlaces de Invitación Directa
 
-- [x] Aumentar capacidad a 300 cartones en `game.server.ts`
-- [x] Crear componente `GuidedTour.tsx` para las viñetas flotantes
-- [x] Integrar Tutorial en la pantalla de inicio (`index.tsx`)
-    - [x] Añadir IDs de anclaje a los inputs y botones
-    - [x] Configurar los pasos del tour para Home
-- [x] Integrar Tutorial en la sala de espera (`sala.$code.tsx`)
-    - [x] Añadir IDs de anclaje a la lista y controles
-    - [x] Configurar los pasos del tour para la Sala
-- [x] Asegurar persistencia en `localStorage`
-- [x] Limitar lista de jugadores en sala de espera a 3 filas con scroll profesional
-- [x] Verificar funcionamiento y fluidez
+- [x] Crear la nueva ruta de invitación rápida (`unirse.$code.tsx`)
+- [x] Implementar la pantalla de "Entrada Rápida" (Nombre + Cartones)
+- [x] Añadir validación de nombre y redirección inteligente si ya existe sesión
+- [x] Actualizar la función de compartir en `sala.$code.tsx` para usar el nuevo link
+- [x] Actualizar el botón "Copiar" para copiar el enlace directo
+- [x] Verificar el flujo completo desde el link hasta la sala de espera
