@@ -1,37 +1,48 @@
-# Plan: Reactivación y Gestión de Códigos Vencidos
+# Plan: Ajuste de Parámetros por Defecto y Optimización de Audio
 
-Este plan añade la capacidad para que el administrador pueda ver los códigos vencidos o agotados y reactivarlos con nuevos límites de tiempo y uso.
+Este plan establece los nuevos valores iniciales solicitados para las partidas y ajusta el motor de audio para que las locuciones se sincronicen correctamente con velocidades de juego rápidas.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - El administrador ahora podrá ver el historial completo de códigos generados, no solo los activos.
-> - Se añadirá una opción de "Reactivar" para los códigos que ya no son válidos.
-> - Al reactivar, se podrán configurar nuevos límites de días y partidas.
+> - **Nuevos Valores por Defecto:**
+>   - Pozo inicial: **S/. 10.00**
+>   - Modo de victoria: **Cartón Lleno (FULL)**
+>   - Velocidad: **4 segundos por bola**
+> - **Optimización de Audio:** El sistema acelerará automáticamente la velocidad de reproducción de la voz cuando el intervalo sea bajo (3-4s) para asegurar que la locución termine antes de que salga la siguiente bola.
 
 ## Pasos Propuestos
 
-### 1. Lógica de Servidor (`src/lib/rooms.functions.ts`)
+### 1. Lógica de Creación de Sala
 
-- **`getCreationCodes` (Actualizado)**: Cambiaremos la función actual para que devuelva todos los códigos generados por el administrador, permitiendo ver los vencidos.
-- **`reactivateCreationCode` [NEW]**:
-  - Función protegida por `is_authorized_admin`.
-  - Permite actualizar un código existente con nueva fecha de `expires_at` y nuevo `use_limit`.
-  - Reiniciará el contador de usos (`use_count = 0`) para permitir que el código vuelva a ser funcional desde cero.
+#### [MODIFY] [rooms.functions.ts](file:///D:/bingo-pals/src/lib/rooms.functions.ts)
+- Actualizar el comando `insert` en la función `createRoom` para incluir los nuevos valores predeterminados:
+  - `prize: 10`
+  - `winning_pattern: 'FULL'`
+  - `ball_interval: 4`
 
-### 2. Interfaz de Usuario (Modal de Gestión)
+### 2. Motor de Audio Dinámico
 
-#### [MODIFY] [sala.$code.tsx](file:///D:/bingo-pals/src/routes/sala.$code.tsx)
-- **Mejora de la Lista**:
-  - Los códigos vencidos aparecerán con una etiqueta roja de "**VENCIDO**" o "**AGOTADO**".
-  - Se añadirá un botón de "**Reactivar**" junto a los códigos no válidos.
-- **Flujo de Reactivación**:
-  - Al pulsar "Reactivar", se abrirá el formulario de configuración (el mismo que se usa para crear) pero aplicado al código seleccionado.
-  - Al confirmar, el código volverá a estar activo instantáneamente.
+#### [MODIFY] [audio.ts](file:///D:/bingo-pals/src/lib/audio.ts)
+- Añadir una variable global `announcerSpeed` para controlar la tasa de reproducción.
+- Implementar la función `setAnnouncerSpeed(speed)` para actualizar este valor.
+- Aplicar `audio.playbackRate` en la función interna `playFile`.
+
+### 3. Sincronización en el Juego
+
+#### [MODIFY] [juego.$code.tsx](file:///D:/bingo-pals/src/routes/juego.$code.tsx)
+- Al cargar el estado del juego, calcular la velocidad necesaria según el `ball_interval`:
+  - Si interval <= 3s → Velocidad 1.4x
+  - Si interval <= 4s → Velocidad 1.2x
+  - En otros casos → Velocidad 1.0x (normal)
+- Llamar a `setAnnouncerSpeed` con el valor calculado.
 
 ## Plan de Verificación
 
-### Pruebas de Gestión
-1. Verificar que en la lista de códigos ahora aparecen los que ya han caducado.
-2. Pulsar "Reactivar" en un código vencido, ponerle 1 día de vida y 1 uso.
-3. Intentar crear una sala con ese código reactivado -> Debe funcionar.
+### Pruebas de Configuración
+1. Crear una sala nueva y verificar que el pozo dice 10, el modo es "Cartón Lleno" y la velocidad es 4s sin tocar nada.
+
+### Pruebas de Audio
+1. Iniciar el juego con velocidad 4s.
+2. Verificar que la voz del locutor suena ligeramente más rápida y "encaja" bien antes de que aparezca el siguiente número.
+3. Cambiar la velocidad a 10s y verificar que la voz vuelve a su ritmo normal.

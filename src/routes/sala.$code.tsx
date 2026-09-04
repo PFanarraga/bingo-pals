@@ -297,7 +297,7 @@ function WaitingRoom() {
   const { code } = Route.useParams();
   const navigate = useNavigate();
   const [session, setSession] = useState<PlayerSession | null>(null);
-  const [prize, setPrize] = useState("0");
+  const [prize, setPrize] = useState("10");
   const [busy, setBusy] = useState(false);
   const [localInterval, setLocalInterval] = useState<number | null>(null);
 

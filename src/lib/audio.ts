@@ -13,12 +13,17 @@ let audioContext: AudioContext | null = null;
 let currentAudio: HTMLAudioElement | null = null;
 let resolveCurrentPlay: ((value: void | PromiseLike<void>) => void) | null = null;
 
-// Control de volumen global para el locutor
+// Control de volumen y velocidad global para el locutor
 let announcerVolume = NORMAL_VOLUME;
+let announcerSpeed = 1.0;
 
 export function setAudioEnabled(value: boolean) {
   enabled = value;
   if (!value) stopAudio();
+}
+
+export function setAnnouncerSpeed(speed: number) {
+  announcerSpeed = speed;
 }
 
 export function isAudioEnabled() {
@@ -75,6 +80,7 @@ function playFile(src: string, volume = announcerVolume): Promise<void> {
 
     const audio = new Audio(src);
     audio.volume = volume;
+    audio.playbackRate = announcerSpeed;
     currentAudio = audio;
     resolveCurrentPlay = resolve;
 

@@ -9,6 +9,8 @@ import { assignCards } from "@/lib/cards.functions";
 import { saveSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { unlockAudio } from "@/lib/audio";
+import { TutorialModal } from "@/components/ui/TutorialModal";
+import { HelpCircle } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -97,7 +99,21 @@ function Home() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-6 px-5 py-10">
-      <header className="text-center">
+      <TutorialModal />
+      <header className="text-center relative">
+        <div className="absolute right-0 -top-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:bg-primary/10"
+            onClick={() => {
+              localStorage.removeItem("bingo75:tutorial_completed");
+              window.location.reload();
+            }}
+          >
+            <HelpCircle className="h-6 w-6" />
+          </Button>
+        </div>
         <p className="text-5xl">🎱</p>
         <h1 className="font-display text-primary mt-1 text-5xl">BINGO 75</h1>
         <p className="text-muted-foreground mt-1 text-sm">

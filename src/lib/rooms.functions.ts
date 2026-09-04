@@ -139,7 +139,14 @@ export const createRoom = createServerFn({ method: "POST" })
     await db.from("rooms").update({ host_player_id: player.id }).eq("id", room.id);
     const { data: game } = await db
       .from("games")
-      .insert({ room_id: room.id, status: "WAITING", game_number: 1 })
+      .insert({
+        room_id: room.id,
+        status: "WAITING",
+        game_number: 1,
+        prize: 10,
+        winning_pattern: 'FULL',
+        ball_interval: 4
+      })
       .select("id")
       .single();
 

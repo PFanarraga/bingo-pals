@@ -14,7 +14,7 @@ import { useMarks } from "@/hooks/useMarks";
 import { claimBingo } from "@/lib/claims.functions";
 import { sessionForRoom, type PlayerSession } from "@/lib/session";
 import { isPatternAchieved, PATTERNS, type WinningPattern } from "@/lib/bingo";
-import { announceBall, isAudioEnabled, setAudioEnabled, unlockAudio, playBingoPressed, playWinnerConfirmed, playAllBallsDrawn } from "@/lib/audio";
+import { announceBall, isAudioEnabled, setAudioEnabled, unlockAudio, playBingoPressed, playWinnerConfirmed, playAllBallsDrawn, setAnnouncerSpeed } from "@/lib/audio";
 import { Volume2, VolumeX, Pause, Play, CheckCircle2, Loader2, Target } from "lucide-react";
 import { autoDrawBall } from "@/lib/balls.functions";
 import { setGameStatus, toggleReady, requestPause, handlePauseRequest } from "@/lib/rooms.functions";
@@ -144,6 +144,16 @@ function GameScreen() {
 
     lastStatusRef.current = state.game.status;
   }, [state.game?.status, state.winners.length, state.game?.drawn_balls.length]);
+
+  // Sincronizar velocidad de audio según el intervalo de bolas
+  useEffect(() => {
+    if (!state.game) return;
+    const interval = state.game.ball_interval;
+    let speed = 1.0;
+    if (interval <= 3) speed = 1.4;
+    else if (interval <= 4) speed = 1.2;
+    setAnnouncerSpeed(speed);
+  }, [state.game?.ball_interval]);
 
   const drawn = state.game?.drawn_balls ?? [];
   const drawnSet = new Set(drawn);

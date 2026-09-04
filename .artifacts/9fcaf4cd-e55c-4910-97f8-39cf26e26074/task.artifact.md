@@ -1,7 +1,5 @@
-- [x] Actualizar lógica de servidor en `rooms.functions.ts`
-    - [x] Modificar `getActiveCreationCodes` para que devuelva todos los códigos
-    - [x] Implementar `reactivateCreationCode`
-- [x] Actualizar interfaz de usuario en `sala.$code.tsx`
-    - [x] Mostrar etiquetas de estado (Vencido/Agotado)
-    - [x] Añadir botón y flujo de reactivación
-- [ ] Verificar cambios
+- [x] Configurar valores por defecto en `rooms.functions.ts` (Pozo: 10, Modo: FULL, Velocidad: 4)
+- [x] Implementar control de velocidad de voz en `audio.ts`
+- [x] Sincronizar velocidad de audio en `juego.$code.tsx`
+- [ ] Implementar Tutorial de Bienvenida (`TutorialModal.tsx`)
+- [ ] Integrar Tutorial en `index.tsx`
