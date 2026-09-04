@@ -57,14 +57,17 @@ export const createRoom = createServerFn({ method: "POST" })
         .neq("status", "FINISHED");
 
       if (activeRoomsList && activeRoomsList.length > 0) {
-        // Verificar si la sala realmente tiene jugadores conectados
+        // Verificar si la sala realmente tiene jugadores ACTIVOS
         let hasActivePlayers = false;
+        const heartbeatLimit = new Date(Date.now() - 60_000).toISOString(); // 1 minuto de margen
+
         for (const room of activeRoomsList) {
           const { count } = await db
             .from("players")
             .select("id", { count: "exact", head: true })
             .eq("room_id", room.id)
-            .eq("connected", true);
+            .eq("connected", true)
+            .gt("last_seen_at", heartbeatLimit);
 
           if ((count ?? 0) > 0) {
             hasActivePlayers = true;
