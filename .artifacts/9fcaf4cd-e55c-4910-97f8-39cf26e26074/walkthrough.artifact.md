@@ -1,32 +1,28 @@
-# Mejoras de Control, Estabilidad y Soporte
+# Visibilidad Global de Cartones
 
-He implementado las 4 mejoras solicitadas para optimizar la gestión de las salas y facilitar el soporte a tus usuarios.
+He implementado la transparencia total en el conteo de cartones para que tanto el anfitrión como los jugadores puedan supervisar la partida en todo momento.
 
 ## Cambios Realizados
 
-### 1. Control de Cartones para el Anfitrión
-- El panel de jugadores (donde aparece la lista de participantes) ahora muestra cuántos cartones tiene asignados cada persona.
-- Esto te permite verificar visualmente que todos los invitados tengan el número de cartones acordado antes de iniciar.
+### 1. Datos Compartidos
+- Se actualizó el sistema central (`useGameState.ts`) para que todos los participantes descarguen el conteo de cartones activos en la sala. Anteriormente, esta información estaba restringida únicamente al anfitrión.
 
-### 2. Estado "Listo" Permanente
-- Una vez que un jugador pulsa el botón "**MARCAR LISTO**", el botón se bloquea y el texto cambia a "**¡YA ESTÁS LISTO!**".
-- Esto evita que los jugadores cambien su estado constantemente, asegurando una transición fluida al inicio de la partida.
+### 2. Sala de Espera Mejorada ([sala.$code.tsx](file:///D:/bingo-pals/src/routes/sala.$code.tsx))
+- La lista de jugadores ahora muestra una etiqueta con el número de cartones (ej: "**3 CARTONES**") junto al nombre de cada persona.
+- **Resaltado de "Listo":** Cuando un jugador marca "Listo", su fila se ilumina en verde y el conteo de cartones resalta, permitiendo al anfitrión confirmar la configuración de un vistazo antes de iniciar.
 
-### 3. Liberación Automática de Códigos de Creación
-- He implementado un sistema de detección de actividad: si intentas crear una sala con un código que tiene una sala anterior "atrapada" pero **sin jugadores conectados**, el sistema la cerrará automáticamente y te permitirá crear la nueva sala al instante.
-- Esto resuelve el problema de "sala en juego" cuando cierras el navegador sin finalizar la partida manualmente.
+### 3. Panel de Jugadores en Juego
+- El panel lateral (icono de grupo) ahora es informativo para todos. Cualquier jugador puede abrirlo para ver quién está conectado y con cuántos cartones está participando cada compañero.
 
-### 4. Información de Contacto WhatsApp
-- En la pantalla de inicio, debajo del campo del código de creación, se ha añadido un panel informativo con tus números de contacto directos para que los interesados puedan adquirir sus códigos fácilmente.
+## Cómo verificarlo
 
-## Pasos para Activar (Manual)
+1.  **Sube los cambios:**
+    ```powershell
+    git add .
+    git commit -m "Mejora: Visibilidad global de cartones en sala y juego"
+    git push origin main
+    ```
+2.  **Lobby:** Entra con dos dispositivos y verifica que ambos ven el número de cartones del otro.
+3.  **Partida:** Durante el juego, abre el panel de jugadores y confirma que el conteo de cartones es visible para todos.
 
-Como siempre, para subir estos cambios a tu nube de Cloudflare, ejecuta:
-
-```powershell
-git add .
-git commit -m "Mejoras: Control de cartones, listo permanente, autolimpieza de salas y contacto WhatsApp"
-git push origin main
-```
-
-¡El sistema ahora es mucho más robusto y fácil de administrar! ¿Hay algún otro detalle que desees ajustar? 🚀🎱✅
+¡Con esto el juego es mucho más transparente y fácil de coordinar! 📊🎱✨

@@ -100,8 +100,6 @@ export function useGameState(code: string, playerId?: string): GameState {
       setGame(currentGame);
 
       if (currentGame) {
-        const isHost = currentPlayers.find(p => p.id === playerId)?.is_host;
-
         const [cardsRes, allCardsRes, claimsRes, winnersRes] = await Promise.all([
           playerId
             ? supabase
@@ -111,12 +109,10 @@ export function useGameState(code: string, playerId?: string): GameState {
                 .eq("player_id", playerId)
                 .order("card_number")
             : Promise.resolve({ data: [] as Card[] }),
-          isHost
-            ? supabase
-                .from("cards")
-                .select("id, player_id")
-                .eq("game_id", currentGame.id)
-            : Promise.resolve({ data: [] as Card[] }),
+          supabase
+            .from("cards")
+            .select("id, player_id")
+            .eq("game_id", currentGame.id),
           supabase
             .from("bingo_claims")
             .select("id, player_id, card_id, status, created_at")

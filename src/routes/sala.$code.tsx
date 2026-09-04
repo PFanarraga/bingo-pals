@@ -388,15 +388,31 @@ function WaitingRoom() {
           <span className="font-display text-primary text-2xl">{state.players.length}</span>
         </div>
         <ul className="mt-3 max-h-44 space-y-1.5 overflow-y-auto">
-          {state.players.map((p) => (
-            <li key={p.id} className="flex items-center justify-between text-sm">
-              <span className="truncate">
-                {p.name}
-                {p.is_host && <span className="text-primary ml-2 text-xs">ANFITRIÓN</span>}
-              </span>
-              <span className="text-xs">{p.connected ? "🟢" : "🔴"}</span>
-            </li>
-          ))}
+          {state.players.map((p) => {
+            const cardCount = state.allCards.filter(c => c.player_id === p.id).length;
+            return (
+              <li key={p.id} className={cn(
+                "flex items-center justify-between text-sm p-2 rounded-lg transition-colors",
+                p.is_ready ? "bg-green-500/10 border border-green-500/20" : "bg-secondary/20"
+              )}>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="truncate">
+                    {p.name}
+                    {p.is_host && <span className="text-primary ml-2 text-[10px] border border-primary px-1 rounded">HOST</span>}
+                  </span>
+                  {cardCount > 0 && (
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.5 rounded-full font-bold",
+                      p.is_ready ? "bg-green-500 text-white" : "bg-secondary text-muted-foreground"
+                    )}>
+                      {cardCount} {cardCount === 1 ? 'CARTÓN' : 'CARTONES'}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs">{p.connected ? "🟢" : "🔴"}</span>
+              </li>
+            );
+          })}
         </ul>
       </section>
 
