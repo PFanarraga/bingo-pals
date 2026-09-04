@@ -1,48 +1,35 @@
-# Plan: Enlaces de Invitación Directa
+# Plan de Prueba de Estrés: Simulación de 100 Jugadores
 
-Este plan implementa un sistema de invitaciones mediante enlaces directos. Al compartir el Bingo, se generará una URL que lleva al invitado a una pantalla simplificada donde solo debe ingresar su nombre para entrar a la sala.
+Este plan describe cómo realizaremos una prueba técnica para verificar si el Bingo Pals puede soportar 100 jugadores reales simultáneamente, analizando tiempos de respuesta, límites de base de datos y estabilidad de la conexión.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - El nuevo enlace tendrá el formato: `https://tu-bingo.com/unirse/CODIGO`.
-> - Si el usuario ya está en la sala (tiene sesión activa), el enlace lo llevará directamente a la sala de espera sin pedirle el nombre de nuevo.
-> - Se valida automáticamente que el nombre no esté repetido en la sala.
+> - La prueba se realizará mediante un **script de simulación** que actuará como 100 "bots" conectándose a la vez.
+> - **Costo de Recursos:** Si estás en el plan Gratuito de Supabase, 100 conexiones de Realtime están permitidas (el límite es 200).
+> - **Tiempo de Ejecución:** La simulación durará unos minutos para medir la estabilidad.
 
-## Pasos Propuestos
+## Pasos de la Prueba
 
-### 1. Nueva Ruta de Invitación
+### 1. Creación de Script de Simulación (`scratch/stress_test.ts`) [NEW]
+Crearemos un script que automatice el siguiente flujo para 100 identidades únicas:
+- **Fase 1: Conexión**: Ejecutar 100 llamadas a `joinRoom` en ráfagas.
+- **Fase 2: Cartones**: Asignar 3 cartones a cada uno de los 100 jugadores (300 cartones totales).
+- **Fase 3: Heartbeat**: Mantener 100 heartbeats activos cada 15 segundos para simular presencia real.
+- **Fase 4: Realtime**: Suscribirse a los cambios de la sala desde los 100 bots para medir el lag de red.
 
-#### [NEW] [unirse.$code.tsx](file:///D:/bingo-pals/src/routes/unirse.$code.tsx)
-Crearemos una página dedicada a los invitados que:
-- Muestre el código de la sala a la que se están uniendo.
-- Tenga un campo de texto para el nombre.
-- Permita elegir el número de cartones (por defecto 1).
-- Al pulsar "Entrar", ejecute la lógica de unión y redirija a `/sala/CODIGO`.
+### 2. Análisis de Cuellos de Botella
+Monitorizaremos:
+- **Tiempos de Inserción**: ¿Cuánto tarda Supabase en meter los 300 cartones en una sola ráfaga?
+- **CPU del Worker**: ¿Cloudflare Workers alcanza su límite de tiempo al procesar la unión masiva?
+- **Lag de Sincronización**: ¿Cuánto tarda un cambio de bola en llegar a todos los bots?
 
-### 2. Mejora del Botón Compartir
-
-#### [MODIFY] [sala.$code.tsx](file:///D:/bingo-pals/src/routes/sala.$code.tsx)
-- Actualizar la función `share` para que genere el enlace completo:
-  ```typescript
-  const url = window.location.origin + "/unirse/" + code.toUpperCase();
-  const text = `¡Únete a mi Bingo 75 en vivo!\nEntra aquí: ${url}`;
-  ```
-- Hacer lo mismo para el botón de "Copiar Código", permitiendo copiar el enlace directo opcionalmente o incluirlo en el portapapeles.
-
-### 3. Lógica de Redirección Inteligente
-
-- En `unirse.$code.tsx`, si se detecta que ya existe una sesión para esa sala en el navegador, se redirigirá al usuario a `/sala/CODIGO` automáticamente para ahorrarle pasos.
+### 3. Informe de Resultados
+Tras la prueba, generaré un informe detallando si el sistema es "Apto para 100" o si requiere optimizaciones adicionales (como paginación de datos o índices extra).
 
 ## Plan de Verificación
 
-### Pruebas de Flujo
-1. Crear una sala y pulsar "Compartir".
-2. Abrir el enlace generado en una ventana de Incógnito.
-3. Verificar que aparece la pantalla de "Unirse a la sala [CODIGO]".
-4. Ingresar un nombre y confirmar.
-5. Verificar que entra correctamente a la sala de espera con sus cartones.
-
-### Pruebas de Validación
-1. Intentar unirse con un nombre que ya existe en la sala -> Debe mostrar error.
-2. Abrir el enlace en una pestaña donde ya eres el Host -> Debe llevarte directo a la sala sin pedir nombre.
+### Métricas de Éxito
+- 100% de los jugadores (100) logran unirse sin errores `500`.
+- Los 300 cartones se generan y asignan en menos de 5 segundos.
+- El servidor mantiene las 100 sesiones activas sin desconexiones masivas.
