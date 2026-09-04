@@ -9,4 +9,5 @@
     - [x] Añadir IDs de anclaje a la lista y controles
     - [x] Configurar los pasos del tour para la Sala
 - [x] Asegurar persistencia en `localStorage`
+- [x] Limitar lista de jugadores en sala de espera a 3 filas con scroll profesional
 - [x] Verificar funcionamiento y fluidez

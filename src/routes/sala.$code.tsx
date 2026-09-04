@@ -467,7 +467,7 @@ function WaitingRoom() {
           <h2 className="font-display text-2xl">Jugadores</h2>
           <span className="font-display text-primary text-2xl">{state.players.length}</span>
         </div>
-        <ul className="mt-3 max-h-44 space-y-1.5 overflow-y-auto">
+        <ul className="mt-3 max-h-[145px] space-y-1.5 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-secondary/10 [&::-webkit-scrollbar-thumb]:bg-primary/20 [&::-webkit-scrollbar-thumb]:rounded-full">
           {state.players.map((p) => {
             const cardCount = state.allCards.filter(c => c.player_id === p.id).length;
             return (

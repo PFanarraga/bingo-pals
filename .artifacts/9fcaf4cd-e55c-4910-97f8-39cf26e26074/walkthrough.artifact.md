@@ -18,6 +18,9 @@ He rediseñado el sistema de tutorial para que sea totalmente interactivo:
 - **Inicio:** Te lleva de la mano por el nombre, código de sala, selección de cartones y creación de salas.
 - **Lobby:** Explica la lista de jugadores (con su nuevo conteo de cartones) y el botón de "**Listo**".
 
+### 4. Interfaz Optimizada
+- **Lista de Jugadores Compacta:** En la sala de espera, la lista ahora muestra solo los 3 primeros jugadores de forma fija. Si entran más (hasta los 100 permitidos), aparece una barra de desplazamiento lateral elegante para no ocupar toda la pantalla.
+
 ## Cómo verificarlo
 
 1.  **Sube los cambios:**
