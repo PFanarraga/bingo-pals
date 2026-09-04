@@ -22,13 +22,13 @@ export function GuidedTour({ steps, onComplete, tourKey }: Props) {
   const [isVisible, setIsVisible] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0, width: 0, height: 0 });
   const [mounted, setMounted] = useState(false);
+  const requestRef = useRef<number>();
 
   useEffect(() => {
     setMounted(true);
     const completed = localStorage.getItem(`tour_completed:${tourKey}`);
     if (!completed) {
-      // Pequeño delay para asegurar que el DOM esté listo
-      const timer = setTimeout(() => setIsVisible(true), 1000);
+      const timer = setTimeout(() => setIsVisible(true), 800);
       return () => clearTimeout(timer);
     }
   }, [tourKey]);
@@ -41,22 +41,29 @@ export function GuidedTour({ steps, onComplete, tourKey }: Props) {
     if (el) {
       const rect = el.getBoundingClientRect();
       setCoords({
-        top: rect.top + window.scrollY,
-        left: rect.left + window.scrollX,
+        top: rect.top,
+        left: rect.left,
         width: rect.width,
         height: rect.height,
       });
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
     }
+    requestRef.current = requestAnimationFrame(updatePosition);
   }, [currentStep, steps]);
 
   useEffect(() => {
     if (isVisible) {
-      updatePosition();
-      window.addEventListener("resize", updatePosition);
-      return () => window.removeEventListener("resize", updatePosition);
+      const targetId = steps[currentStep]?.targetId;
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+
+      requestRef.current = requestAnimationFrame(updatePosition);
+      return () => {
+        if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      };
     }
-  }, [isVisible, updatePosition]);
+  }, [isVisible, currentStep, updatePosition, steps]);
 
   const next = () => {
     if (currentStep < steps.length - 1) {
@@ -76,34 +83,33 @@ export function GuidedTour({ steps, onComplete, tourKey }: Props) {
 
   const step = steps[currentStep];
 
-  // Calcular posición de la viñeta
+  // Posicionamiento de la viñeta relativo al viewport
+  const isTooHigh = coords.top < 200;
+  const showBelow = step.position === "bottom" || isTooHigh;
+
   const tooltipStyle: React.CSSProperties = {
-    position: "absolute",
-    top: coords.top + coords.height + 12,
-    left: Math.max(10, Math.min(window.innerWidth - 290, coords.left + (coords.width / 2) - 140)),
-    zIndex: 100,
+    position: "fixed",
+    top: showBelow ? coords.top + coords.height + 15 : coords.top - 180,
+    left: Math.max(15, Math.min(window.innerWidth - 295, coords.left + (coords.width / 2) - 140)),
+    zIndex: 10001,
   };
 
-  if (step?.position === "top") {
-    tooltipStyle.top = coords.top - 160; // Ajuste aproximado
-  }
-
   return createPortal(
-    <div className="fixed inset-0 z-[9999] pointer-events-none overflow-hidden">
+    <div className="fixed inset-0 z-[10000] pointer-events-none overflow-hidden">
       {/* Fondo oscurecido con hueco (Spotlight) */}
       <div
-        className="absolute inset-0 bg-background/60 backdrop-blur-[2px] transition-all duration-500"
+        className="absolute inset-0 bg-background/80 backdrop-blur-[1px] transition-all duration-300"
         style={{
-          clipPath: `polygon(0% 0%, 0% 100%, ${coords.left}px 100%, ${coords.left}px ${coords.top}px, ${coords.left + coords.width}px ${coords.top}px, ${coords.left + coords.width}px ${coords.top + coords.height}px, ${coords.left}px ${coords.top + coords.height}px, ${coords.left}px 100%, 100% 100%, 100% 0%)`
+          clipPath: `polygon(0% 0%, 0% 100%, ${coords.left - 4}px 100%, ${coords.left - 4}px ${coords.top - 4}px, ${coords.left + coords.width + 4}px ${coords.top - 4}px, ${coords.left + coords.width + 4}px ${coords.top + coords.height + 4}px, ${coords.left - 4}px ${coords.top + coords.height + 4}px, ${coords.left - 4}px 100%, 100% 100%, 100% 0%)`
         }}
       />
 
       {/* Viñeta flotante */}
       <div
         style={tooltipStyle}
-        className="pointer-events-auto w-[280px] animate-in slide-in-from-bottom-4 fade-in duration-300"
+        className="pointer-events-auto w-[280px] animate-in zoom-in-95 fade-in duration-200"
       >
-        <div className="panel bg-card border-primary/30 p-4 shadow-2xl relative">
+        <div className="panel bg-card border-primary/40 p-4 shadow-2xl relative">
           <button
             onClick={complete}
             className="absolute right-2 top-2 p-1 hover:bg-secondary rounded-full transition-colors"
@@ -113,29 +119,42 @@ export function GuidedTour({ steps, onComplete, tourKey }: Props) {
 
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shadow-lg">
                 {currentStep + 1}
               </span>
-              <h4 className="font-display text-lg leading-none">{step?.title}</h4>
+              <h4 className="font-display text-xl tracking-tight leading-none text-primary">{step?.title}</h4>
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-[13px] text-foreground leading-snug">
               {step?.content}
             </p>
           </div>
 
-          <div className="mt-4 flex items-center justify-between">
-            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">
-              Paso {currentStep + 1} de {steps.length}
-            </span>
-            <Button size="sm" onClick={next} className="h-8 px-3 text-xs font-bold">
-              {currentStep === steps.length - 1 ? "¡ENTENDIDO!" : "SIGUIENTE"}
+          <div className="mt-5 flex items-center justify-between border-t border-white/5 pt-3">
+            <div className="flex gap-1">
+              {steps.map((_, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    "h-1 rounded-full transition-all",
+                    i === currentStep ? "w-4 bg-primary" : "w-1 bg-secondary"
+                  )}
+                />
+              ))}
+            </div>
+            <Button size="sm" onClick={next} className="h-8 px-4 text-xs font-bold shadow-md">
+              {currentStep === steps.length - 1 ? "¡LISTO!" : "CONTINUAR"}
               {currentStep < steps.length - 1 && <ChevronRight className="ml-1 h-3 w-3" />}
             </Button>
           </div>
 
-          {/* Flecha indicadora (opcional) */}
+          {/* Flecha indicadora */}
           <div
-            className="absolute -top-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[8px] border-b-primary/30"
+            className={cn(
+              "absolute left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent",
+              showBelow
+                ? "border-b-[10px] border-b-primary/40 -top-2.5"
+                : "border-t-[10px] border-t-primary/40 -bottom-2.5"
+            )}
           />
         </div>
       </div>
