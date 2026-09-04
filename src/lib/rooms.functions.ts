@@ -510,8 +510,8 @@ export const generateCreationCode = createServerFn({ method: "POST" })
     return inserted;
   });
 
-/** Obtiene los códigos de creación activos para el administrador. */
-export const getActiveCreationCodes = createServerFn({ method: "GET" })
+/** Obtiene todos los códigos de creación para el administrador. */
+export const getCreationCodes = createServerFn({ method: "GET" })
   .inputValidator((input: { playerId: string; token: string }) => authSchema.parse(input))
   .handler(async ({ data }) => {
     const { db, requirePlayer } = await import("@/lib/game.server");
@@ -521,18 +521,56 @@ export const getActiveCreationCodes = createServerFn({ method: "GET" })
       throw new Error("No autorizado");
     }
 
-    const now = new Date().toISOString();
     const { data: codes, error } = await db
       .from("room_creation_codes")
       .select("*")
-      .eq("is_active", true)
-      .or(`expires_at.is.null,expires_at.gt.${now}`)
       .order("created_at", { ascending: false });
 
     if (error) throw new Error("Error al obtener códigos");
+    return codes ?? [];
+  });
 
-    // Filtrar los que ya superaron el límite de uso
-    return (codes ?? []).filter(c => c.use_limit === null || c.use_count < c.use_limit);
+/** Reactiva un código existente con nuevos límites. */
+export const reactivateCreationCode = createServerFn({ method: "POST" })
+  .inputValidator((input: {
+    playerId: string;
+    token: string;
+    codeId: string;
+    days: number | null;
+    limit: number | null
+  }) => authSchema.extend({
+    codeId: z.string().uuid(),
+    days: z.number().nullable(),
+    limit: z.number().nullable()
+  }).parse(input))
+  .handler(async ({ data }) => {
+    const { db, requirePlayer } = await import("@/lib/game.server");
+    const player = await requirePlayer(data.playerId, data.token);
+
+    if (!player.is_authorized_admin) {
+      throw new Error("No autorizado");
+    }
+
+    let expiresAt = null;
+    if (data.days !== null) {
+      expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + (data.days * 24));
+    }
+
+    const { data: updated, error } = await db
+      .from("room_creation_codes")
+      .update({
+        use_limit: data.limit,
+        use_count: 0, // Reiniciar contador
+        expires_at: expiresAt?.toISOString(),
+        is_active: true
+      })
+      .eq("id", data.codeId)
+      .select("code")
+      .single();
+
+    if (error) throw new Error("Error al reactivar el código");
+    return updated;
   });
 
 /** Nueva partida en la misma sala: bolas y cartones se reinician. */

@@ -1,33 +1,37 @@
-# Plan: Visibilidad Global de Cartones
+# Plan: Reactivación y Gestión de Códigos Vencidos
 
-Este plan permite que todos los jugadores vean cuántos cartones tiene cada participante y mejora la vista del anfitrión en la sala de espera para supervisar los cartones antes de iniciar.
+Este plan añade la capacidad para que el administrador pueda ver los códigos vencidos o agotados y reactivarlos con nuevos límites de tiempo y uso.
 
 ## User Review Required
 
-> [!NOTE]
-> - El conteo de cartones será público para todos los participantes de la sala.
-> - Se actualizará tanto la sala de espera como el panel lateral del juego.
+> [!IMPORTANT]
+> - El administrador ahora podrá ver el historial completo de códigos generados, no solo los activos.
+> - Se añadirá una opción de "Reactivar" para los códigos que ya no son válidos.
+> - Al reactivar, se podrán configurar nuevos límites de días y partidas.
 
 ## Pasos Propuestos
 
-### 1. Estado Global del Juego
+### 1. Lógica de Servidor (`src/lib/rooms.functions.ts`)
 
-#### [MODIFY] [useGameState.ts](file:///D:/bingo-pals/src/hooks/useGameState.ts)
-- Eliminar la restricción que solo permitía al anfitrión descargar la lista de todos los cartones (`allCards`). Ahora todos los jugadores descargarán esta información mínima (ID de cartón y ID de jugador) para poder realizar el conteo localmente.
+- **`getCreationCodes` (Actualizado)**: Cambiaremos la función actual para que devuelva todos los códigos generados por el administrador, permitiendo ver los vencidos.
+- **`reactivateCreationCode` [NEW]**:
+  - Función protegida por `is_authorized_admin`.
+  - Permite actualizar un código existente con nueva fecha de `expires_at` y nuevo `use_limit`.
+  - Reiniciará el contador de usos (`use_count = 0`) para permitir que el código vuelva a ser funcional desde cero.
 
-### 2. Sala de Espera (Lobby)
+### 2. Interfaz de Usuario (Modal de Gestión)
 
 #### [MODIFY] [sala.$code.tsx](file:///D:/bingo-pals/src/routes/sala.$code.tsx)
-- Actualizar la lista de jugadores para mostrar el número de cartones junto al nombre.
-- Resaltar el conteo de cartones especialmente cuando un jugador marca "Listo", para que el anfitrión pueda confirmar rápidamente la configuración de la partida.
-
-### 3. Panel de Jugadores (Juego)
-
-#### [MODIFY] [juego.$code.tsx](file:///D:/bingo-pals/src/routes/juego.$code.tsx)
-- Pasar la información de `allCards` al componente `PlayersPanel` para todos los usuarios, no solo para el host.
+- **Mejora de la Lista**:
+  - Los códigos vencidos aparecerán con una etiqueta roja de "**VENCIDO**" o "**AGOTADO**".
+  - Se añadirá un botón de "**Reactivar**" junto a los códigos no válidos.
+- **Flujo de Reactivación**:
+  - Al pulsar "Reactivar", se abrirá el formulario de configuración (el mismo que se usa para crear) pero aplicado al código seleccionado.
+  - Al confirmar, el código volverá a estar activo instantáneamente.
 
 ## Plan de Verificación
 
-### Pruebas Visuales
-1. Entrar como jugador y verificar que puedes ver cuántos cartones tienen tus compañeros en la lista.
-2. Como anfitrión, verificar que al ponerse alguien "Listo", el número de cartones es claramente visible en la sala de espera.
+### Pruebas de Gestión
+1. Verificar que en la lista de códigos ahora aparecen los que ya han caducado.
+2. Pulsar "Reactivar" en un código vencido, ponerle 1 día de vida y 1 uso.
+3. Intentar crear una sala con ese código reactivado -> Debe funcionar.

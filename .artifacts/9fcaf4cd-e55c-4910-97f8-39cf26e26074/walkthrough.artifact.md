@@ -1,28 +1,32 @@
-# Visibilidad Global de Cartones
+# Gestión y Reactivación de Códigos
 
-He implementado la transparencia total en el conteo de cartones para que tanto el anfitrión como los jugadores puedan supervisar la partida en todo momento.
+He mejorado el sistema de gestión de códigos de creación para que el administrador pueda tener un control total sobre los códigos vencidos o agotados, permitiendo su reactivación instantánea.
 
 ## Cambios Realizados
 
-### 1. Datos Compartidos
-- Se actualizó el sistema central (`useGameState.ts`) para que todos los participantes descarguen el conteo de cartones activos en la sala. Anteriormente, esta información estaba restringida únicamente al anfitrión.
+### 1. Historial Completo de Códigos
+- El panel de gestión ahora muestra todos los códigos generados en el pasado, no solo los que están actualmente activos.
+- Se añadieron etiquetas visuales de color rojo y ámbar para identificar rápidamente códigos **VENCIDOS** o **AGOTADOS**.
+- Se muestra el tiempo exacto que ha pasado desde el vencimiento de forma legible.
 
-### 2. Sala de Espera Mejorada ([sala.$code.tsx](file:///D:/bingo-pals/src/routes/sala.$code.tsx))
-- La lista de jugadores ahora muestra una etiqueta con el número de cartones (ej: "**3 CARTONES**") junto al nombre de cada persona.
-- **Resaltado de "Listo":** Cuando un jugador marca "Listo", su fila se ilumina en verde y el conteo de cartones resalta, permitiendo al anfitrión confirmar la configuración de un vistazo antes de iniciar.
+### 2. Función de Reactivación
+- Se implementó una nueva lógica en el servidor que permite tomar un código existente y actualizar sus límites.
+- Al reactivar un código, su contador de usos vuelve a cero, permitiendo que sea utilizado nuevamente como si fuera nuevo.
 
-### 3. Panel de Jugadores en Juego
-- El panel lateral (icono de grupo) ahora es informativo para todos. Cualquier jugador puede abrirlo para ver quién está conectado y con cuántos cartones está participando cada compañero.
+### 3. Interfaz de Usuario Mejorada ([sala.$code.tsx](file:///D:/bingo-pals/src/routes/sala.$code.tsx))
+- **Botón "ACTIVAR":** Los códigos que ya no son válidos ahora muestran un botón de activación.
+- **Flujo de Edición:** Al reactivar, se abre el formulario de configuración para que el administrador decida los nuevos límites de días y partidas.
 
 ## Cómo verificarlo
 
 1.  **Sube los cambios:**
     ```powershell
     git add .
-    git commit -m "Mejora: Visibilidad global de cartones en sala y juego"
+    git commit -m "Mejora: Gestión y reactivación de códigos vencidos"
     git push origin main
     ```
-2.  **Lobby:** Entra con dos dispositivos y verifica que ambos ven el número de cartones del otro.
-3.  **Partida:** Durante el juego, abre el panel de jugadores y confirma que el conteo de cartones es visible para todos.
+2.  **Accede como Administrador:** Entra en una sala con tu Código Maestro.
+3.  **Gestiona tus Códigos:** Abre el modal de generación y pulsa el icono de historial (reloj/lista).
+4.  **Reactiva:** Busca un código antiguo y pulsa "**ACTIVAR**". Configura nuevos límites y confirma. El código volverá a estar disponible inmediatamente para crear nuevas salas.
 
-¡Con esto el juego es mucho más transparente y fácil de coordinar! 📊🎱✨
+¡Ahora tienes el control total para reutilizar tus códigos de acceso cuando lo necesites! 🔄🔐✅

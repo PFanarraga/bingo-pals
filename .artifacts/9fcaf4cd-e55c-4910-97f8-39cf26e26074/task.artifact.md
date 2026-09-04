@@ -1,6 +1,7 @@
-# Tareas: Visibilidad Global de Cartones
-
-- [x] Actualizar `useGameState.ts` para compartir conteo de cartones con todos
-- [x] Mostrar conteo de cartones en la sala de espera (`sala.$code.tsx`)
-- [x] Asegurar que el panel lateral del juego muestra los cartones de todos
-- [x] Verificar visualmente los cambios
+- [x] Actualizar lógica de servidor en `rooms.functions.ts`
+    - [x] Modificar `getActiveCreationCodes` para que devuelva todos los códigos
+    - [x] Implementar `reactivateCreationCode`
+- [x] Actualizar interfaz de usuario en `sala.$code.tsx`
+    - [x] Mostrar etiquetas de estado (Vencido/Agotado)
+    - [x] Añadir botón y flujo de reactivación
+- [ ] Verificar cambios

@@ -9,7 +9,7 @@ import { CardCarousel } from "@/components/bingo/CardCarousel";
 import { useGameState } from "@/hooks/useGameState";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
 import { assignCards as assignCardsFn, rerollCard as rerollCardFn } from "@/lib/cards.functions";
-import { startGame, toggleReady, updateBallInterval, updateWinningPattern, generateCreationCode, getActiveCreationCodes } from "@/lib/rooms.functions";
+import { startGame, toggleReady, updateBallInterval, updateWinningPattern, generateCreationCode, getCreationCodes, reactivateCreationCode } from "@/lib/rooms.functions";
 import { sessionForRoom, type PlayerSession } from "@/lib/session";
 import { FREE_INDEX, PATTERNS, type WinningPattern } from "@/lib/bingo";
 import { Copy, RefreshCw, Share2, Timer, Target, KeyRound, CheckCircle, Clock, History } from "lucide-react";
@@ -52,32 +52,41 @@ function CreationCodeModal({ playerId, token }: { playerId: string; token: strin
   const [activeCodes, setActiveCodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState<"form" | "result" | "list">("form");
+  const [selectedCodeId, setSelectedCodeId] = useState<string | null>(null);
 
   const loadActive = async () => {
     try {
-      const res = await getActiveCreationCodes({ data: { playerId, token } });
+      const res = await getCreationCodes({ data: { playerId, token } });
       setActiveCodes(res);
     } catch (e) {
       console.error(e);
     }
   };
 
-  const handleGenerate = async () => {
+  const handleAction = async () => {
     setLoading(true);
     try {
-      const res = await generateCreationCode({
-        data: {
-          playerId,
-          token,
-          days: days === "custom" ? Number(customDays) : (days === "0" ? null : Number(days)),
-          limit: limit === "custom" ? Number(customLimit) : (limit === "0" ? null : Number(limit))
-        }
-      });
-      setGenerated(res);
-      setView("result");
+      const finalDays = days === "custom" ? Number(customDays) : (days === "0" ? null : Number(days));
+      const finalLimit = limit === "custom" ? Number(customLimit) : (limit === "0" ? null : Number(limit));
+
+      if (selectedCodeId) {
+        // Reactivación
+        const res = await reactivateCreationCode({
+          data: { playerId, token, codeId: selectedCodeId, days: finalDays, limit: finalLimit }
+        });
+        toast.success(`Código ${res.code} reactivado`);
+        setView("form");
+      } else {
+        // Generación nueva
+        const res = await generateCreationCode({
+          data: { playerId, token, days: finalDays, limit: finalLimit }
+        });
+        setGenerated(res);
+        setView("result");
+      }
       void loadActive();
     } catch (e) {
-      toast.error("Error al generar código");
+      toast.error(selectedCodeId ? "Error al reactivar código" : "Error al generar código");
     } finally {
       setLoading(false);
     }
@@ -85,6 +94,14 @@ function CreationCodeModal({ playerId, token }: { playerId: string; token: strin
 
   const reset = () => {
     setGenerated(null);
+    setSelectedCodeId(null);
+    setDays("0");
+    setLimit("0");
+    setView("form");
+  };
+
+  const startReactivate = (code: any) => {
+    setSelectedCodeId(code.id);
     setDays("0");
     setLimit("0");
     setView("form");
@@ -99,15 +116,30 @@ function CreationCodeModal({ playerId, token }: { playerId: string; token: strin
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader className="flex flex-row items-center justify-between">
-          <DialogTitle className="font-display text-2xl">Gestión de Códigos</DialogTitle>
-          <Button variant="ghost" size="sm" onClick={() => setView(view === "list" ? "form" : "list")}>
-            {view === "list" ? <Clock className="h-4 w-4" /> : <History className="h-4 w-4" />}
-          </Button>
+        <DialogHeader className="flex flex-row items-center justify-between pr-8">
+          <DialogTitle className="font-display text-2xl">
+            {selectedCodeId ? "Reactivar Código" : "Gestión de Códigos"}
+          </DialogTitle>
+          <div className="flex gap-2">
+            {view !== "form" || selectedCodeId ? (
+              <Button variant="ghost" size="sm" onClick={() => { setView("form"); setSelectedCodeId(null); }}>
+                <Clock className="h-4 w-4" />
+              </Button>
+            ) : null}
+            <Button variant="ghost" size="sm" onClick={() => setView("list")}>
+              <History className="h-4 w-4" />
+            </Button>
+          </div>
         </DialogHeader>
 
         {view === "form" && (
           <div className="space-y-4 py-4">
+            {selectedCodeId && (
+              <div className="bg-primary/10 p-2 rounded text-center border border-primary/20">
+                <p className="text-xs uppercase font-bold text-primary">Configurando nuevos límites para:</p>
+                <p className="font-mono font-bold">{activeCodes.find(c => c.id === selectedCodeId)?.code}</p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Vencimiento (Días)</Label>
               <Select value={days} onValueChange={setDays}>
@@ -159,15 +191,15 @@ function CreationCodeModal({ playerId, token }: { playerId: string; token: strin
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button className="flex-1" onClick={handleGenerate} disabled={loading}>
-                {loading ? "GENERANDO..." : "GENERAR CÓDIGO"}
+              <Button className="flex-1 h-12" onClick={handleAction} disabled={loading}>
+                {loading ? "PROCESANDO..." : (selectedCodeId ? "RE-ACTIVAR" : "GENERAR CÓDIGO")}
               </Button>
+              {selectedCodeId && (
+                <Button variant="outline" className="h-12" onClick={() => { setSelectedCodeId(null); setView("list"); }}>
+                  CANCELAR
+                </Button>
+              )}
             </div>
-            {activeCodes.length > 0 && (
-              <Button variant="link" className="w-full text-xs" onClick={() => setView("list")}>
-                Ver {activeCodes.length} códigos activos
-              </Button>
-            )}
           </div>
         )}
 
@@ -207,32 +239,52 @@ function CreationCodeModal({ playerId, token }: { playerId: string; token: strin
         {view === "list" && (
           <div className="space-y-3 py-4 max-h-[400px] overflow-y-auto pr-2">
             {activeCodes.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground italic">No hay códigos activos</p>
+              <p className="text-center py-8 text-muted-foreground italic">No hay historial de códigos</p>
             ) : (
-              activeCodes.map(c => (
-                <div key={c.id} className="panel p-3 flex items-center justify-between gap-3 border-white/5">
-                  <div className="min-w-0">
-                    <p className="font-mono font-bold text-primary text-lg uppercase tracking-widest">{c.code}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase truncate">
-                      {c.expires_at ? (
-                        <>Vence {formatDistanceToNow(new Date(c.expires_at), { addSuffix: true, locale: es })}</>
-                      ) : "Sin vencimiento"}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground uppercase">
-                      {c.use_limit ? `Usos: ${c.use_count} / ${c.use_limit}` : "Usos: Ilimitados"}
-                    </p>
+              activeCodes.map(c => {
+                const isExpired = c.expires_at && new Date(c.expires_at) < new Date();
+                const isExhausted = c.use_limit !== null && c.use_count >= c.use_limit;
+                const isInactive = !c.is_active || isExpired || isExhausted;
+
+                return (
+                  <div key={c.id} className={cn(
+                    "panel p-3 flex items-center justify-between gap-3 border-white/5",
+                    isInactive && "opacity-80 bg-red-500/5 border-red-500/10"
+                  )}>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-mono font-bold text-primary text-lg uppercase tracking-widest">{c.code}</p>
+                        {isExpired && <span className="bg-red-500 text-white text-[8px] px-1 rounded font-bold">VENCIDO</span>}
+                        {isExhausted && <span className="bg-amber-600 text-white text-[8px] px-1 rounded font-bold">AGOTADO</span>}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground uppercase truncate">
+                        {c.expires_at ? (
+                          <>{isExpired ? 'Venció' : 'Vence'} {formatDistanceToNow(new Date(c.expires_at), { addSuffix: true, locale: es })}</>
+                        ) : "Sin vencimiento"}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground uppercase">
+                        {c.use_limit ? `Usos: ${c.use_count} / ${c.use_limit}` : "Usos: Ilimitados"}
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Button size="sm" variant="secondary" className="h-7 text-[10px]" onClick={() => {
+                        navigator.clipboard.writeText(c.code);
+                        toast.success("Copiado");
+                      }}>
+                        COPIAR
+                      </Button>
+                      {isInactive && (
+                        <Button size="sm" variant="outline" className="h-7 text-[10px] border-primary/50 text-primary" onClick={() => startReactivate(c)}>
+                          ACTIVAR
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  <Button size="sm" variant="secondary" onClick={() => {
-                    navigator.clipboard.writeText(c.code);
-                    toast.success("Copiado");
-                  }}>
-                    COPIAR
-                  </Button>
-                </div>
-              ))
+                );
+              })
             )}
             <Button variant="outline" className="w-full mt-4" onClick={() => setView("form")}>
-              VOLVER ATRÁS
+              NUEVO CÓDIGO
             </Button>
           </div>
         )}
