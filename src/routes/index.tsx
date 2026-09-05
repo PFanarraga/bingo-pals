@@ -128,17 +128,6 @@ function Home() {
       <GuidedTour steps={homeTourSteps} tourKey="home" />
       <header className="text-center relative">
         <div className="absolute right-0 -top-2 flex gap-1">
-          {isInstallable && !isStandalone && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-primary animate-bounce"
-              onClick={install}
-              title="Instalar App"
-            >
-              <Smartphone className="h-6 w-6" />
-            </Button>
-          )}
           <Button
             variant="ghost"
             size="icon"
@@ -158,6 +147,23 @@ function Home() {
           Bingo clásico de 75 bolas para jugar con tus amigos
         </p>
       </header>
+
+      {isInstallable && !isStandalone && (
+        <section className="panel p-4 bg-primary/10 border-primary/30 animate-in fade-in slide-in-from-top-4 duration-700">
+          <div className="flex items-center gap-3">
+            <div className="bg-primary/20 p-2 rounded-full">
+              <Smartphone className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-xs font-bold uppercase tracking-tight">Bingo en tu celular</p>
+              <p className="text-[10px] text-muted-foreground">Instala la App para jugar mejor.</p>
+            </div>
+            <Button size="sm" className="h-8 px-3 text-[10px] font-bold" onClick={install}>
+              INSTALAR
+            </Button>
+          </div>
+        </section>
+      )}
 
       <section className="panel space-y-4 p-5">
         <div id="input-name" className="space-y-1.5">
