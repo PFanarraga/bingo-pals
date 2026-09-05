@@ -1,32 +1,36 @@
-# Feedback de Bingo, Moderación y Navegación Mejorada
+# Sistema de Instalación Directa (PWA)
 
-He implementado un conjunto de mejoras para dar más claridad a los jugadores, herramientas de control al anfitrión y una navegación más sencilla entre partidas.
+He implementado un sistema inteligente que detecta si el usuario está usando el navegador y le sugiere instalar la App del Bingo directamente en su pantalla de inicio para una mejor experiencia.
 
 ## Cambios Realizados
 
-### 1. Feedback Detallado de Bingo Inválido
-- **¿Qué pasaba?** Cuando alguien cantaba bingo por error, el sistema solo decía "Inválido".
-- **Mejora:** Ahora, si un jugador canta bingo y le faltan números, se abrirá automáticamente un **modal explicativo**.
-- **Transparencia:** El modal muestra exactamente qué números le faltaban al cartón según las bolas que han salido hasta ese momento para el patrón seleccionado (Línea, Full, etc.).
+### 1. Detector de Instalación ([usePWAInstall.ts](file:///D:/bingo-pals/src/hooks/usePWAInstall.ts))
+- He creado un "cerebro" central que escucha al navegador para saber cuándo el celular está listo para instalar la App.
+- **Detección Automática:** Sabe si ya estás usando la App instalada (Modo Standalone) para no molestarte con avisos innecesarios.
 
-### 2. Control de la Sala (Moderación)
-- **Expulsar Jugadores:** El anfitrión ahora tiene una **X roja** junto a cada nombre en la lista de la sala de espera. Esto permite sacar a jugadores no deseados o que se han quedado "colgados".
-- **Botón Salir:** Se añadió el icono de una **puerta abierta** arriba a la derecha en la sala de espera para que cualquier jugador pueda abandonar la sala de forma voluntaria y segura.
+### 2. Banner para Invitados ([unirse.$code.tsx](file:///D:/bingo-pals/src/routes/unirse.$code.tsx))
+- **Primera Impresión:** Cuando un invitado abre tu link compartido, lo primero que verá es un elegante recuadro azul que le invita a "**Instalar la App**" para que el Bingo sea más rápido y ocupe menos espacio.
+- **Acceso Directo:** Al pulsar "INSTALAR", el celular abrirá automáticamente el cuadro oficial de descarga.
 
-### 3. Navegación Simplificada Post-Partida
-- **Botón CONTINUAR:** En la pantalla de resultados, se han eliminado los botones de "Nueva Partida" y "Salir". Ahora hay un único botón gigante de "**CONTINUAR**".
-- **Flujo:** Al pulsar Continuar, el anfitrión devuelve a todos automáticamente al lobby para preparar la siguiente ronda, manteniendo la fluidez del evento.
+### 3. Acceso en Pantalla Principal ([index.tsx](file:///D:/bingo-pals/src/routes/index.tsx))
+- He añadido un icono de **Smartphone con movimiento** (animación bounce) en la parte superior derecha de la pantalla de inicio.
+- Si el usuario no tiene la App instalada, este icono aparecerá para permitirle descargarla en cualquier momento.
 
-## Cómo verificarlo
+## Cómo funciona para tus usuarios
 
-1.  **Sube los cambios:**
-    ```powershell
-    git add .
-    git commit -m "Mejora: Feedback de bingo inválido, moderación y botón continuar"
-    git push origin main
-    ```
-2.  **Prueba de Bingo:** Intenta cantar bingo con un cartón incompleto. Verás el nuevo modal con los números que te faltan.
-3.  **Prueba de Host:** Entra como anfitrión y verás las opciones para expulsar jugadores.
-4.  **Prueba de Finalización:** Termina una partida y usa el botón "Continuar" para ver cómo todos regresan al lobby al mismo tiempo.
+1.  **Enlace de Invitación:** Tu invitado hace clic en el link de WhatsApp.
+2.  **Sugerencia:** Se le muestra el aviso: *"Juega con la App instalada"*.
+3.  **Instalación:** Pulsa "Instalar", acepta el cuadro del sistema y ¡listo! Ya tiene el icono de Bingo Pals en su escritorio como una App de la Play Store.
 
-¡Con estas herramientas tienes el control total de tus eventos de Bingo! 🚀🎱🛡️✨🏁
+## Cómo activarlo
+
+Ejecuta el push para que las mejoras suban a tu servidor:
+
+```powershell
+git add .
+git commit -m "Mejora: Sistema de invitación a instalación de PWA"
+git push origin main
+```
+
+> [!TIP]
+> **Nota técnica:** Por seguridad de los navegadores (Chrome/Safari), el botón de instalar solo aparecerá después de unos segundos de navegación o después de que el usuario haga su primer clic en la pantalla. ¡Es automático y muy seguro! 🚀📲🎱✨🏁

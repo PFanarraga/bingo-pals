@@ -9,6 +9,8 @@ import { assignCards } from "@/lib/cards.functions";
 import { saveSession, sessionForRoom } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { unlockAudio } from "@/lib/audio";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
+import { Smartphone, CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/unirse/$code")({
   head: () => ({
@@ -29,6 +31,7 @@ function QuickJoin() {
   const [name, setName] = useState("");
   const [count, setCount] = useState(1);
   const [busy, setBusy] = useState(false);
+  const { isInstallable, isStandalone, install } = usePWAInstall();
 
   useEffect(() => {
     // Si ya tiene sesión activa para esta sala, entrar directo
@@ -70,6 +73,30 @@ function QuickJoin() {
         <h1 className="font-display text-primary mt-2 text-4xl uppercase tracking-widest">Unirse a Sala</h1>
         <p className="font-display text-3xl mt-1 tracking-[0.2em]">{code.toUpperCase()}</p>
       </header>
+
+      {isInstallable && !isStandalone && (
+        <section className="panel p-4 bg-primary/10 border-primary/30 animate-in fade-in slide-in-from-top-4 duration-700">
+          <div className="flex items-center gap-3">
+            <div className="bg-primary/20 p-2 rounded-full">
+              <Smartphone className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold uppercase tracking-tight">Juega con la App instalada</p>
+              <p className="text-[10px] text-muted-foreground">Ocupa menos espacio y es más rápida.</p>
+            </div>
+            <Button size="sm" className="h-8 px-3 text-[10px] font-bold" onClick={install}>
+              INSTALAR
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {isStandalone && (
+        <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-green-500 uppercase tracking-widest opacity-60">
+          <CheckCircle2 className="h-3 w-3" />
+          App instalada correctamente
+        </div>
+      )}
 
       <section className="panel space-y-5 p-6 border-primary/20">
         <div className="space-y-1.5">

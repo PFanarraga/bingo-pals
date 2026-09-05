@@ -11,7 +11,8 @@ import { cn } from "@/lib/utils";
 import { unlockAudio } from "@/lib/audio";
 import { TutorialModal } from "@/components/ui/TutorialModal";
 import { GuidedTour, type TourStep } from "@/components/ui/GuidedTour";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Smartphone } from "lucide-react";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -39,6 +40,7 @@ function Home() {
   const [creationCode, setCreationCode] = useState("");
   const [count, setCount] = useState(1);
   const [busy, setBusy] = useState(false);
+  const { isInstallable, isStandalone, install } = usePWAInstall();
 
   const homeTourSteps: TourStep[] = [
     {
@@ -125,7 +127,18 @@ function Home() {
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-6 px-5 py-10">
       <GuidedTour steps={homeTourSteps} tourKey="home" />
       <header className="text-center relative">
-        <div className="absolute right-0 -top-2">
+        <div className="absolute right-0 -top-2 flex gap-1">
+          {isInstallable && !isStandalone && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-primary animate-bounce"
+              onClick={install}
+              title="Instalar App"
+            >
+              <Smartphone className="h-6 w-6" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
