@@ -453,12 +453,11 @@ function WaitingRoom() {
                 variant="secondary"
                 size="sm"
                 onClick={async () => {
-                  const url = `${window.location.origin}/unirse/${code.toUpperCase()}`;
-                  await navigator.clipboard.writeText(url).catch(() => undefined);
-                  toast.success("Enlace directo copiado");
+                  await navigator.clipboard.writeText(code.toUpperCase()).catch(() => undefined);
+                  toast.success("Código de sala copiado");
                 }}
               >
-                <Copy className="mr-1 h-4 w-4" /> Copiar Enlace
+                <Copy className="mr-1 h-4 w-4" /> Copiar Código
               </Button>
             </div>
           </>
