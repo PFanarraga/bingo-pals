@@ -98,16 +98,18 @@ function GameScreen() {
   // Audio de la bola nueva (letra + pausa + número).
   useEffect(() => {
     const ball = state.game?.current_ball ?? null;
+    const drawn = state.game?.drawn_balls ?? [];
     if (!ball) return;
 
-    // Si la bola es diferente a la última que procesamos, la cantamos
-    if (lastBallRef.current !== ball) {
+    // Solo cantamos la bola si el número está oficialmente en la lista de sorteadas
+    // Esto evita cantar "fantasmas" si hubo un error de red o desincronización
+    if (lastBallRef.current !== ball && drawn.includes(ball)) {
       lastBallRef.current = ball;
       if (isAudioEnabled()) {
         announceBall(ball);
       }
     }
-  }, [state.game?.current_ball]);
+  }, [state.game?.current_ball, state.game?.drawn_balls]);
 
   // Aviso de bingos cantados.
   useEffect(() => {

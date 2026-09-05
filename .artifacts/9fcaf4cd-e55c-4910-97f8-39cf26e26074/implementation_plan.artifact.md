@@ -1,35 +1,43 @@
-# Plan de Prueba de Estrés: Simulación de 100 Jugadores
+# Plan: Corrección de Sincronización y Audio en Sorteo Automático
 
-Este plan describe cómo realizaremos una prueba técnica para verificar si el Bingo Pals puede soportar 100 jugadores reales simultáneamente, analizando tiempos de respuesta, límites de base de datos y estabilidad de la conexión.
+Este plan resuelve el problema de inconsistencia donde el número cantado por el audio a veces no coincide con la lista de números que aparecen en pantalla.
+
+## Análisis del Problema
+El error ocurre debido a una "condición de carrera" (race condition). Cuando varios jugadores están conectados, sus navegadores intentan solicitar el sorteo automático casi al mismo tiempo.
+
+Actualmente, el servidor lee la lista de números, elige uno nuevo y sobrescribe la lista completa. Si dos jugadores lo hacen a la vez, uno puede sobrescribir el trabajo del otro, haciendo que un número que se llegó a anunciar desaparezca de la lista oficial de la base de datos.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - La prueba se realizará mediante un **script de simulación** que actuará como 100 "bots" conectándose a la vez.
-> - **Costo de Recursos:** Si estás en el plan Gratuito de Supabase, 100 conexiones de Realtime están permitidas (el límite es 200).
-> - **Tiempo de Ejecución:** La simulación durará unos minutos para medir la estabilidad.
+> - Implementaremos una función interna en la base de datos (RPC) para que el sorteo sea "atómico". Esto significa que aunque 100 personas pidan una bola a la vez, el servidor las procesará una por una y solo aceptará una cada X segundos.
+> - Esto garantiza que el número cantado siempre sea el que se guarda permanentemente.
 
-## Pasos de la Prueba
+## Pasos Propuestos
 
-### 1. Creación de Script de Simulación (`scratch/stress_test.ts`) [NEW]
-Crearemos un script que automatice el siguiente flujo para 100 identidades únicas:
-- **Fase 1: Conexión**: Ejecutar 100 llamadas a `joinRoom` en ráfagas.
-- **Fase 2: Cartones**: Asignar 3 cartones a cada uno de los 100 jugadores (300 cartones totales).
-- **Fase 3: Heartbeat**: Mantener 100 heartbeats activos cada 15 segundos para simular presencia real.
-- **Fase 4: Realtime**: Suscribirse a los cambios de la sala desde los 100 bots para medir el lag de red.
+### 1. Base de Datos (Supabase)
 
-### 2. Análisis de Cuellos de Botella
-Monitorizaremos:
-- **Tiempos de Inserción**: ¿Cuánto tarda Supabase en meter los 300 cartones en una sola ráfaga?
-- **CPU del Worker**: ¿Cloudflare Workers alcanza su límite de tiempo al procesar la unión masiva?
-- **Lag de Sincronización**: ¿Cuánto tarda un cambio de bola en llegar a todos los bots?
+#### [NEW] [20260905142000_atomic_draw_ball.sql](file:///D:/bingo-pals/supabase/migrations/20260905142000_atomic_draw_ball.sql)
+Crearemos una función SQL `draw_next_ball` que realice todo el proceso de forma segura en el servidor:
+- Bloquear la fila de la partida para evitar interferencias.
+- Verificar que el juego esté en curso y haya pasado el tiempo (intervalo).
+- Comprobar que no haya reclamos de Bingo pendientes.
+- Elegir un número aleatorio de los restantes.
+- Actualizar la lista (añadiendo el número) y marcar el tiempo actual.
 
-### 3. Informe de Resultados
-Tras la prueba, generaré un informe detallando si el sistema es "Apto para 100" o si requiere optimizaciones adicionales (como paginación de datos o índices extra).
+### 2. Lógica de Servidor
+
+#### [MODIFY] [balls.functions.ts](file:///D:/bingo-pals/src/lib/balls.functions.ts)
+- Refactorizar `autoDrawBall` para que simplemente llame a la nueva función RPC de la base de datos en lugar de hacer los cálculos manualmente en el código de la App.
+
+### 3. Refuerzo de Audio (Frontend)
+
+#### [MODIFY] [juego.$code.tsx](file:///D:/bingo-pals/src/routes/juego.$code.tsx)
+- Asegurar que el audio solo se dispare cuando la bola actual realmente esté presente en la lista oficial de bolas sorteadas, evitando cantar "fantasmas" que desaparecen por lag de red.
 
 ## Plan de Verificación
 
-### Métricas de Éxito
-- 100% de los jugadores (100) logran unirse sin errores `500`.
-- Los 300 cartones se generan y asignan en menos de 5 segundos.
-- El servidor mantiene las 100 sesiones activas sin desconexiones masivas.
+### Pruebas de Estrés
+1. Abrir el juego en 3 pestañas diferentes.
+2. Iniciar la partida.
+3. Verificar que, aunque todas las pestañas intenten disparar el sorteo, solo sale una bola al ritmo configurado (ej: cada 4s) y el audio coincide 100% con lo que se ve en la lista de "Bolas Cantadas".

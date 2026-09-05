@@ -20,57 +20,21 @@ export const autoDrawBall = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { db, requirePlayer } = await import("@/lib/game.server");
-    const player = await requirePlayer(data.playerId, data.token);
+    await requirePlayer(data.playerId, data.token);
 
-    // 1. Obtener estado actual del juego y jugadores
-    const { data: game } = await db
-      .from("games")
-      .select("id, status, drawn_balls, last_ball_at, ball_interval, room_id")
-      .eq("id", data.gameId)
-      .single();
+    // Ejecutar el sorteo de forma atómica en el servidor de base de datos
+    const { data: ball, error } = await db.rpc("draw_next_ball", {
+      p_game_id: data.gameId
+    });
 
-    if (!game || game.status !== "PLAYING") return { ok: false, reason: "NOT_PLAYING" };
-
-    // 1.1 Verificar si hay bingos pendientes de validar
-    const { count: pendingClaims } = await db
-      .from("bingo_claims")
-      .select("id", { count: "exact", head: true })
-      .eq("game_id", data.gameId)
-      .eq("status", "VALID");
-
-    if ((pendingClaims ?? 0) > 0) {
-      return { ok: false, reason: "PENDING_CLAIMS" };
+    if (error) {
+      console.error("[Draw] Error RPC:", error);
+      return { ok: false, reason: "SERVER_ERROR" };
     }
 
-    const drawn = game.drawn_balls ?? [];
-    if (drawn.length >= 75) return { ok: false, reason: "COMPLETED" };
-
-    // 2. Verificar si ha pasado el tiempo
-    const lastBall = new Date(game.last_ball_at || 0).getTime();
-    const now = Date.now();
-    const elapsed = (now - lastBall) / 1000;
-
-    if (elapsed < game.ball_interval) {
-      return { ok: false, reason: "WAITING_TIME", remaining: Math.round(game.ball_interval - elapsed) };
+    if (ball === null) {
+      return { ok: false, reason: "NOT_READY_OR_COMPLETED" };
     }
-
-    // 3. Todo OK -> Sacar bola
-    const remaining: number[] = [];
-    const used = new Set(drawn);
-    for (let n = 1; n <= 75; n++) if (!used.has(n)) remaining.push(n);
-    const ball = remaining[Math.floor(Math.random() * remaining.length)]!;
-
-    const { error } = await db
-      .from("games")
-      .update({
-        drawn_balls: [...drawn, ball],
-        current_ball: ball,
-        last_ball_at: new Date().toISOString()
-      })
-      .eq("id", game.id)
-      .eq("status", "PLAYING");
-
-    if (error) throw new Error("No se pudo sacar la bola");
 
     return { ok: true, ball };
   });

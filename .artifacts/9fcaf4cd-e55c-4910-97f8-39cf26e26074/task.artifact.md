@@ -1,8 +1,7 @@
-# Tareas: Enlaces de Invitación Directa
+# Tareas: Corrección de Sincronización y Audio
 
-- [x] Crear la nueva ruta de invitación rápida (`unirse.$code.tsx`)
-- [x] Implementar la pantalla de "Entrada Rápida" (Nombre + Cartones)
-- [x] Añadir validación de nombre y redirección inteligente si ya existe sesión
-- [x] Actualizar la función de compartir en `sala.$code.tsx` para usar el nuevo link
-- [x] Actualizar el botón "Copiar" para copiar el enlace directo
-- [x] Verificar el flujo completo desde el link hasta la sala de espera
+- [x] Crear migración SQL para la función `draw_next_ball` (RPC)
+- [x] Refactorizar `balls.functions.ts` para usar la función RPC
+- [x] Reforzar la lógica de audio en `juego.$code.tsx`
+- [ ] Aplicar cambios a Supabase y Cloudflare
+- [ ] Verificar funcionamiento en múltiples pestañas
