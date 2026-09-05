@@ -97,6 +97,29 @@ export function checkWinServer(numbers: number[], drawn: number[], pattern: Winn
   return required.every(isMarked);
 }
 
+/** Devuelve la lista de números que le faltan a un cartón para cumplir un patrón (autoridad del servidor) */
+export function getMissingNumbersServer(numbers: number[], drawn: number[], pattern: WinningPattern = "LINE"): number[] {
+  const set = new Set(drawn);
+  const isMarked = (i: number) => i === FREE_INDEX || set.has(numbers[i]!);
+
+  if (pattern === "LINE") {
+    // Para LINE, buscamos la línea que esté más cerca de completarse (menos faltantes)
+    let bestMissing: number[] = Array.from({ length: 5 }, (_, i) => i); // Inicializar con algo largo
+
+    for (const line of LINES) {
+      const missing = line.filter(i => i !== FREE_INDEX && !set.has(numbers[i]!)).map(i => numbers[i]!);
+      if (missing.length < bestMissing.length) {
+        bestMissing = missing;
+      }
+      if (bestMissing.length === 0) break;
+    }
+    return bestMissing;
+  }
+
+  const required = PATTERN_INDICES[pattern];
+  return required.filter(i => i !== FREE_INDEX && !set.has(numbers[i]!)).map(i => numbers[i]!);
+}
+
 // Deprecated aliases for backward compatibility if needed temporarily
 export function hasMarkedLine(marked: boolean[]): boolean { return isPatternAchieved(marked, "LINE"); }
 export function hasLineWithDrawn(numbers: number[], drawn: number[]): boolean { return checkWinServer(numbers, drawn, "LINE"); }

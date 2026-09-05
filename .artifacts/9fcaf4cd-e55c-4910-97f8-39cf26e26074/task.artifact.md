@@ -1,7 +1,9 @@
-# Tareas: Corrección de Sincronización y Audio
+# Tareas: Validación, Moderación y Navegación
 
-- [x] Crear migración SQL para la función `draw_next_ball` (RPC)
-- [x] Refactorizar `balls.functions.ts` para usar la función RPC
-- [x] Reforzar la lógica de audio en `juego.$code.tsx`
-- [ ] Aplicar cambios a Supabase y Cloudflare
-- [ ] Verificar funcionamiento en múltiples pestañas
+- [x] Lógica de números faltantes en `bingo.ts`
+- [x] Retorno de errores detallados en `claims.functions.ts`
+- [x] Modal de "Bingo Inválido" en `juego.$code.tsx`
+- [x] Función de expulsión en `rooms.functions.ts`
+- [x] Interfaz de Lobby (Salir/Expulsar) en `sala.$code.tsx`
+- [x] Simplificación de pantalla de resultados en `resultado.$code.tsx`
+- [x] Verificar flujo completo

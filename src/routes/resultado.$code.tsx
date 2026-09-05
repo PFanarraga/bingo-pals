@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useGameState } from "@/hooks/useGameState";
 import { newGame } from "@/lib/rooms.functions";
 import { clearSession, sessionForRoom, type PlayerSession } from "@/lib/session";
+import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/resultado/$code")({
   head: () => ({
@@ -99,25 +100,17 @@ function ResultScreen() {
       </section>
 
       {isHost ? (
-        <Button className="h-14 w-full text-lg" disabled={busy} onClick={start}>
-          NUEVA PARTIDA
+        <Button className="h-16 w-full text-xl font-bold shadow-lg bg-green-600 hover:bg-green-700 animate-bounce" disabled={busy} onClick={start}>
+          CONTINUAR
         </Button>
       ) : (
-        <p className="text-muted-foreground text-center text-sm">
-          Esperando al anfitrión para una nueva partida…
-        </p>
+        <div className="text-center p-6 panel bg-primary/5 border-primary/20">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary mb-3" />
+          <p className="text-sm font-medium animate-pulse">
+            ESPERANDO AL ANFITRIÓN PARA CONTINUAR...
+          </p>
+        </div>
       )}
-
-      <Button
-        variant="outline"
-        className="w-full"
-        onClick={() => {
-          clearSession();
-          navigate({ to: "/" });
-        }}
-      >
-        SALIR DE LA SALA
-      </Button>
     </main>
   );
 }

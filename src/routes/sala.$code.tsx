@@ -9,10 +9,10 @@ import { CardCarousel } from "@/components/bingo/CardCarousel";
 import { useGameState } from "@/hooks/useGameState";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
 import { assignCards as assignCardsFn, rerollCard as rerollCardFn } from "@/lib/cards.functions";
-import { startGame, toggleReady, updateBallInterval, updateWinningPattern, generateCreationCode, getCreationCodes, reactivateCreationCode } from "@/lib/rooms.functions";
-import { sessionForRoom, type PlayerSession } from "@/lib/session";
+import { startGame, toggleReady, updateBallInterval, updateWinningPattern, generateCreationCode, getCreationCodes, reactivateCreationCode, kickPlayer } from "@/lib/rooms.functions";
+import { sessionForRoom, clearSession, type PlayerSession } from "@/lib/session";
 import { FREE_INDEX, PATTERNS, type WinningPattern } from "@/lib/bingo";
-import { Copy, RefreshCw, Share2, Timer, Target, KeyRound, CheckCircle, Clock, History } from "lucide-react";
+import { Copy, RefreshCw, Share2, Timer, Target, KeyRound, CheckCircle, Clock, History, LogOut, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { playIntro, unlockAudio } from "@/lib/audio";
 import { Slider } from "@/components/ui/slider";
@@ -340,6 +340,16 @@ function WaitingRoom() {
   const state = useGameState(code, session?.playerId);
 
   const me = state.players.find(p => p.id === session?.playerId);
+
+  // Redirigir si el jugador ha sido expulsado
+  useEffect(() => {
+    if (!state.loading && session && state.players.length > 0 && !me) {
+      clearSession(code);
+      toast.error("Has sido expulsado de la sala");
+      navigate({ to: "/" });
+    }
+  }, [state.players, me, state.loading, session, navigate, code]);
+
   const isAuthorizedAdmin = Boolean(me?.is_authorized_admin);
 
   // Sincronizar intervalo local con la DB si no estamos arrastrando
@@ -439,7 +449,21 @@ function WaitingRoom() {
   return (
     <main className="mx-auto w-full max-w-md space-y-5 px-4 py-6">
       <GuidedTour steps={lobbyTourSteps} tourKey="lobby" />
-      <header className="text-center">
+      <header className="text-center relative">
+        <div className="absolute right-0 -top-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+            onClick={() => {
+              clearSession(code);
+              navigate({ to: "/" });
+            }}
+            title="Salir de la sala"
+          >
+            <LogOut className="h-6 w-6" />
+          </Button>
+        </div>
         <h1 className="font-display text-primary text-4xl">🎱 BINGO 75</h1>
         {isHost && (
           <>
@@ -472,6 +496,8 @@ function WaitingRoom() {
         <ul className="mt-3 max-h-[145px] space-y-1.5 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-secondary/10 [&::-webkit-scrollbar-thumb]:bg-primary/20 [&::-webkit-scrollbar-thumb]:rounded-full">
           {state.players.map((p) => {
             const cardCount = state.allCards.filter(c => c.player_id === p.id).length;
+            const canKick = isHost && p.id !== session?.playerId;
+
             return (
               <li key={p.id} className={cn(
                 "flex items-center justify-between text-sm p-2 rounded-lg transition-colors",
@@ -491,7 +517,29 @@ function WaitingRoom() {
                     </span>
                   )}
                 </div>
-                <span className="text-xs">{p.connected ? "🟢" : "🔴"}</span>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs">{p.connected ? "🟢" : "🔴"}</span>
+                  {canKick && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-red-500 p-0"
+                      onClick={async () => {
+                        if (confirm(`¿Expulsar a ${p.name}?`)) {
+                          try {
+                            await kickPlayer({ data: { playerId: session!.playerId, token: session!.token, targetPlayerId: p.id } });
+                            toast.success(`Jugador ${p.name} expulsado`);
+                          } catch (e) {
+                            toast.error("No se pudo expulsar al jugador");
+                          }
+                        }
+                      }}
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </li>
             );
           })}

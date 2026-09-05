@@ -26,7 +26,7 @@ export const claimBingo = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { db, requirePlayer, getGame } = await import("@/lib/game.server");
-    const { checkWinServer, WinningPattern } = await import("@/lib/bingo");
+    const { checkWinServer, getMissingNumbersServer } = await import("@/lib/bingo");
     const player = await requirePlayer(data.playerId, data.token);
     const game = await getGame(data.gameId) as any; // Cast for custom props
 
@@ -44,6 +44,7 @@ export const claimBingo = createServerFn({ method: "POST" })
     const drawn = game.drawn_balls ?? [];
     const pattern = (game.winning_pattern || "LINE") as any;
     const valid = checkWinServer(card.numbers as number[], drawn, pattern);
+    const missing = !valid ? getMissingNumbersServer(card.numbers as number[], drawn, pattern) : [];
 
     const { data: claim, error } = await db
       .from("bingo_claims")
@@ -52,7 +53,7 @@ export const claimBingo = createServerFn({ method: "POST" })
         player_id: player.id,
         card_id: card.id,
         status: valid ? "VALID" : "INVALID",
-        marked_state: { marked: data.marked },
+        marked_state: { marked: data.marked, missing },
         ball_count: drawn.length,
         verified_at: new Date().toISOString(),
       })
@@ -67,7 +68,11 @@ export const claimBingo = createServerFn({ method: "POST" })
       await db.from("rooms").update({ status: "PAUSED" }).eq("id", game.room_id);
     }
 
-    return { status: claim.status as "VALID" | "INVALID", claimId: claim.id as string };
+    return {
+      status: claim.status as "VALID" | "INVALID",
+      claimId: claim.id as string,
+      missing
+    };
   });
 
 /**

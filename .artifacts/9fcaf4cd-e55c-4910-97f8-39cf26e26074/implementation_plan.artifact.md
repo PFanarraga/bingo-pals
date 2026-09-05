@@ -1,43 +1,52 @@
-# Plan: Corrección de Sincronización y Audio en Sorteo Automático
+# Plan: Mejoras de Validación, Moderación y Navegación
 
-Este plan resuelve el problema de inconsistencia donde el número cantado por el audio a veces no coincide con la lista de números que aparecen en pantalla.
-
-## Análisis del Problema
-El error ocurre debido a una "condición de carrera" (race condition). Cuando varios jugadores están conectados, sus navegadores intentan solicitar el sorteo automático casi al mismo tiempo.
-
-Actualmente, el servidor lee la lista de números, elige uno nuevo y sobrescribe la lista completa. Si dos jugadores lo hacen a la vez, uno puede sobrescribir el trabajo del otro, haciendo que un número que se llegó a anunciar desaparezca de la lista oficial de la base de datos.
+Este plan implementa un sistema de feedback detallado para bingos inválidos, una navegación más fluida al finalizar partidas y herramientas de moderación (expulsar) para el anfitrión.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - Implementaremos una función interna en la base de datos (RPC) para que el sorteo sea "atómico". Esto significa que aunque 100 personas pidan una bola a la vez, el servidor las procesará una por una y solo aceptará una cada X segundos.
-> - Esto garantiza que el número cantado siempre sea el que se guarda permanentemente.
+> - Al cantar un Bingo inválido, el jugador verá exactamente qué números le faltaban según las bolas sorteadas.
+> - El anfitrión podrá expulsar jugadores de la sala pulsando una 'X' en la lista.
+> - Se simplifica la pantalla de resultados con un único botón de "Continuar".
 
 ## Pasos Propuestos
 
-### 1. Base de Datos (Supabase)
+### 1. Lógica de Validación Detallada
 
-#### [NEW] [20260905142000_atomic_draw_ball.sql](file:///D:/bingo-pals/supabase/migrations/20260905142000_atomic_draw_ball.sql)
-Crearemos una función SQL `draw_next_ball` que realice todo el proceso de forma segura en el servidor:
-- Bloquear la fila de la partida para evitar interferencias.
-- Verificar que el juego esté en curso y haya pasado el tiempo (intervalo).
-- Comprobar que no haya reclamos de Bingo pendientes.
-- Elegir un número aleatorio de los restantes.
-- Actualizar la lista (añadiendo el número) y marcar el tiempo actual.
+#### [MODIFY] [bingo.ts](file:///D:/bingo-pals/src/lib/bingo.ts)
+- Implementar `getMissingNumbers(numbers, drawn, pattern)`: Devuelve la lista de números que faltan para completar el patrón seleccionado.
 
-### 2. Lógica de Servidor
+#### [MODIFY] [claims.functions.ts](file:///D:/bingo-pals/src/lib/claims.functions.ts)
+- Actualizar `claimBingo` para que devuelva los números faltantes en caso de que el bingo sea inválido.
 
-#### [MODIFY] [balls.functions.ts](file:///D:/bingo-pals/src/lib/balls.functions.ts)
-- Refactorizar `autoDrawBall` para que simplemente llame a la nueva función RPC de la base de datos en lugar de hacer los cálculos manualmente en el código de la App.
-
-### 3. Refuerzo de Audio (Frontend)
+### 2. Interfaz de Juego (Feedback)
 
 #### [MODIFY] [juego.$code.tsx](file:///D:/bingo-pals/src/routes/juego.$code.tsx)
-- Asegurar que el audio solo se dispare cuando la bola actual realmente esté presente en la lista oficial de bolas sorteadas, evitando cantar "fantasmas" que desaparecen por lag de red.
+- Añadir un modal informativo que se dispare cuando el servidor responda con un Bingo inválido.
+- El modal mostrará: "Bingo Inválido", la lista de números faltantes y una breve explicación.
+
+### 3. Moderación y Salida en Lobby
+
+#### [NEW] [rooms.functions.ts#kickPlayer](file:///D:/bingo-pals/src/lib/rooms.functions.ts)
+- Crear una función de servidor para eliminar a un jugador de la sala (protegida para el Host).
+
+#### [MODIFY] [sala.$code.tsx](file:///D:/bingo-pals/src/routes/sala.$code.tsx)
+- **Botón Salir:** Añadir un icono de "puerta" en la parte superior para abandonar la sala voluntariamente.
+- **Botón Expulsar:** Si el usuario es Host, mostrar una 'X' roja junto a cada jugador en la lista para expulsarlos.
+
+### 4. Navegación Post-Partida
+
+#### [MODIFY] [resultado.$code.tsx](file:///D:/bingo-pals/src/routes/resultado.$code.tsx)
+- Eliminar los botones actuales y sustituirlos por un botón principal de "**CONTINUAR**" que redirige al lobby (`/sala/$code`).
 
 ## Plan de Verificación
 
-### Pruebas de Estrés
-1. Abrir el juego en 3 pestañas diferentes.
-2. Iniciar la partida.
-3. Verificar que, aunque todas las pestañas intenten disparar el sorteo, solo sale una bola al ritmo configurado (ej: cada 4s) y el audio coincide 100% con lo que se ve en la lista de "Bolas Cantadas".
+### Pruebas de Feedback
+1. Intentar cantar bingo sin tener los números -> Verificar que aparece el modal con los números faltantes exactos.
+
+### Pruebas de Moderación
+1. Como Host, expulsar a un jugador -> Verificar que el jugador es redirigido al inicio y desaparece de la lista.
+2. Como jugador, pulsar el botón de salir -> Verificar salida correcta.
+
+### Pruebas de Navegación
+1. Finalizar partida y pulsar "Continuar" -> Verificar que se vuelve al lobby y todo está listo para la siguiente ronda.

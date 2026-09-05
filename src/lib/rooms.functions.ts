@@ -616,3 +616,26 @@ export const newGame = createServerFn({ method: "POST" })
       .eq("id", host.room_id);
     return { gameId: game.id };
   });
+
+/** Expulsa a un jugador de la sala (Solo Host). */
+export const kickPlayer = createServerFn({ method: "POST" })
+  .inputValidator((input: { playerId: string; token: string; targetPlayerId: string }) =>
+    authSchema.extend({ targetPlayerId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { db, requireHost } = await import("@/lib/game.server");
+    await requireHost(data.playerId, data.token);
+
+    // No se puede expulsar a uno mismo (el host)
+    if (data.playerId === data.targetPlayerId) {
+      throw new Error("No puedes expulsarte a ti mismo");
+    }
+
+    const { error } = await db
+      .from("players")
+      .delete()
+      .eq("id", data.targetPlayerId);
+
+    if (error) throw new Error("No se pudo expulsar al jugador");
+    return { ok: true };
+  });

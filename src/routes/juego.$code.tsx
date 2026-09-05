@@ -15,10 +15,11 @@ import { claimBingo } from "@/lib/claims.functions";
 import { sessionForRoom, type PlayerSession } from "@/lib/session";
 import { isPatternAchieved, PATTERNS, type WinningPattern } from "@/lib/bingo";
 import { announceBall, isAudioEnabled, setAudioEnabled, unlockAudio, playBingoPressed, playWinnerConfirmed, playAllBallsDrawn, setAnnouncerSpeed } from "@/lib/audio";
-import { Volume2, VolumeX, Pause, Play, CheckCircle2, Loader2, Target } from "lucide-react";
+import { Volume2, VolumeX, Pause, Play, CheckCircle2, Loader2, Target, AlertCircle } from "lucide-react";
 import { autoDrawBall } from "@/lib/balls.functions";
 import { setGameStatus, toggleReady, requestPause, handlePauseRequest } from "@/lib/rooms.functions";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/juego/$code")({
   head: () => ({
@@ -43,6 +44,7 @@ function GameScreen() {
   const [sound, setSound] = useState(true);
   const [activeCard, setActiveCard] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [invalidBingo, setInvalidBingo] = useState<{ missing: number[] } | null>(null);
   const lastBallRef = useRef<number | null>(null);
   const lastClaimRef = useRef<string | null>(null);
 
@@ -252,10 +254,8 @@ function GameScreen() {
       });
       if (result.status === "VALID") {
         toast.success("¡BINGO! Esperando la verificación del anfitrión");
-        playComment("bingo");
       } else {
-        toast.error("BINGO NO VÁLIDO");
-        playComment("fakeBingo");
+        setInvalidBingo({ missing: (result as any).missing || [] });
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo cantar bingo");
@@ -275,6 +275,51 @@ function GameScreen() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-3 px-3 pt-3 pb-28">
+      {/* Modal de Bingo Inválido */}
+      <Dialog open={!!invalidBingo} onOpenChange={(val) => !val && setInvalidBingo(null)}>
+        <DialogContent className="sm:max-w-md border-red-500/20 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-display text-3xl text-center text-red-500">
+              BINGO NO VÁLIDO
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 text-center space-y-4">
+            <div className="flex justify-center">
+              <div className="bg-red-500/10 p-4 rounded-full">
+                <AlertCircle className="h-12 w-12 text-red-500" />
+              </div>
+            </div>
+            <p className="text-sm font-medium text-muted-foreground leading-relaxed">
+              Tu cartón todavía no cumple el patrón de
+              <span className="text-primary font-bold mx-1">
+                {PATTERNS[currentPattern]?.label.toUpperCase()}
+              </span>
+              con las bolillas que han salido.
+            </p>
+
+            {invalidBingo?.missing && invalidBingo.missing.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-widest font-bold text-red-400">Te falta(n):</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {invalidBingo.missing.map(num => (
+                    <div key={num} className="h-10 w-10 flex items-center justify-center rounded-full bg-secondary border border-red-500/30 font-bold text-lg">
+                      {num}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <p className="text-[11px] italic text-muted-foreground pt-2">
+              Verifica que tus números marcados coincidan con las bolas que han salido.
+            </p>
+          </div>
+          <Button className="w-full h-12 text-lg font-bold bg-red-600 hover:bg-red-700" onClick={() => setInvalidBingo(null)}>
+            ENTENDIDO
+          </Button>
+        </DialogContent>
+      </Dialog>
+
       <header className="panel space-y-3 p-3">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
