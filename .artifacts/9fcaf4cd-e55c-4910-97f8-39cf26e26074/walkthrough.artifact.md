@@ -1,36 +1,31 @@
-# Sistema de Instalación Directa (PWA)
+# Continuidad de Juego y Recuperación de Partida
 
-He implementado un sistema inteligente que detecta si el usuario está usando el navegador y le sugiere instalar la App del Bingo directamente en su pantalla de inicio para una mejor experiencia.
+He implementado un sistema de persistencia y herencia de datos para asegurar que ningún jugador pierda su lugar o sus cartones por un error del navegador o un cierre accidental.
 
 ## Cambios Realizados
 
-### 1. Detector de Instalación ([usePWAInstall.ts](file:///D:/bingo-pals/src/hooks/usePWAInstall.ts))
-- He creado un "cerebro" central que escucha al navegador para saber cuándo el celular está listo para instalar la App.
-- **Detección Automática:** Sabe si ya estás usando la App instalada (Modo Standalone) para no molestarte con avisos innecesarios.
+### 1. Memoria de Largo Plazo ([session.ts](file:///D:/bingo-pals/src/lib/session.ts))
+- Se ha migrado el almacenamiento de la identidad del jugador de `sessionStorage` a `localStorage`.
+- **¿Qué significa?** Que el celular ahora "recuerda" quién eres incluso si cierras la pestaña, reinicias el teléfono o usas la App instalada (PWA). Tu nombre y tus permisos de anfitrión están blindados.
 
-### 2. Banner para Invitados ([unirse.$code.tsx](file:///D:/bingo-pals/src/routes/unirse.$code.tsx))
-- **Primera Impresión:** Cuando un invitado abre tu link compartido, lo primero que verá es un elegante recuadro azul que le invita a "**Instalar la App**" para que el Bingo sea más rápido y ocupe menos espacio.
-- **Acceso Directo:** Al pulsar "INSTALAR", el celular abrirá automáticamente el cuadro oficial de descarga.
+### 2. Recuperación Inteligente en Inicio ([index.tsx](file:///D:/bingo-pals/src/routes/index.tsx))
+- He añadido un "**Banner de Emergencia**" en la pantalla principal.
+- Si el sistema detecta que tienes una partida activa en alguna sala, aparecerá un recuadro verde que te permite pulsar "**REGRESAR AL JUEGO**" para entrar instantáneamente a tu sitio sin tener que poner nombre ni código.
 
-### 3. Acceso en Pantalla Principal ([index.tsx](file:///D:/bingo-pals/src/routes/index.tsx))
-- He añadido un icono de **Smartphone con movimiento** (animación bounce) en la parte superior derecha de la pantalla de inicio.
-- Si el usuario no tiene la App instalada, este icono aparecerá para permitirle descargarla en cualquier momento.
+### 3. Herencia de Cartones entre Rondas ([rooms.functions.ts](file:///D:/bingo-pals/src/lib/rooms.functions.ts))
+Se ha perfeccionado el botón "Continuar" para las nuevas partidas:
+- **Reseteo de Seguridad:** Al iniciar una nueva ronda, todos los jugadores pasan automáticamente a estado "**No Listo**". Esto evita que el juego empiece por error sin que todos estén preparados.
+- **Memoria de Cartones:** El sistema ahora copia automáticamente tus cartones de la partida anterior a la nueva. Cuando regreses a la sala de espera, **ya tendrás tus números en la mano**. Podrás decidir si jugar con esos mismos o cambiarlos.
 
-## Cómo funciona para tus usuarios
+## Cómo verificarlo
 
-1.  **Enlace de Invitación:** Tu invitado hace clic en el link de WhatsApp.
-2.  **Sugerencia:** Se le muestra el aviso: *"Juega con la App instalada"*.
-3.  **Instalación:** Pulsa "Instalar", acepta el cuadro del sistema y ¡listo! Ya tiene el icono de Bingo Pals en su escritorio como una App de la Play Store.
+1.  **Sube los cambios:**
+    ```powershell
+    git add .
+    git commit -m "Mejora: Recuperación de sesión, listo permanente y memoria de cartones"
+    git push origin main
+    ```
+2.  **Prueba de Cierre:** Entra a una sala, cierra el navegador y vuelve a entrar. Verás el botón para regresar a tu partida.
+3.  **Prueba de Continuidad:** Termina una partida y dale a "Continuar". Verifica que tus cartones siguen siendo los mismos y que apareces como "No Listo".
 
-## Cómo activarlo
-
-Ejecuta el push para que las mejoras suban a tu servidor:
-
-```powershell
-git add .
-git commit -m "Mejora: Sistema de invitación a instalación de PWA"
-git push origin main
-```
-
-> [!TIP]
-> **Nota técnica:** Por seguridad de los navegadores (Chrome/Safari), el botón de instalar solo aparecerá después de unos segundos de navegación o después de que el usuario haga su primer clic en la pantalla. ¡Es automático y muy seguro! 🚀📲🎱✨🏁
+¡Ahora el Bingo es mucho más fluido y a prueba de accidentes! 🚀🛡️🎱✨🏁

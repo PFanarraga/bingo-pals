@@ -1,9 +1,6 @@
-# Tareas: Validación, Moderación y Navegación
+# Tareas: Continuidad, Recuperación y Memoria de Cartones
 
-- [x] Lógica de números faltantes en `bingo.ts`
-- [x] Retorno de errores detallados en `claims.functions.ts`
-- [x] Modal de "Bingo Inválido" en `juego.$code.tsx`
-- [x] Función de expulsión en `rooms.functions.ts`
-- [x] Interfaz de Lobby (Salir/Expulsar) en `sala.$code.tsx`
-- [x] Simplificación de pantalla de resultados en `resultado.$code.tsx`
-- [x] Verificar flujo completo
+- [ ] Migrar almacenamiento de identidad a `localStorage` (`session.ts`)
+- [ ] Implementar herencia de cartones y reseteo de estado en `newGame` (`rooms.functions.ts`)
+- [ ] Crear banner de recuperación en la pantalla de inicio (`index.tsx`)
+- [ ] Verificar funcionamiento de la persistencia y herencia

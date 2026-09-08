@@ -1,18 +1,19 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createRoom, joinRoom } from "@/lib/rooms.functions";
 import { assignCards } from "@/lib/cards.functions";
-import { saveSession } from "@/lib/session";
+import { saveSession, loadSession, clearSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { unlockAudio } from "@/lib/audio";
 import { TutorialModal } from "@/components/ui/TutorialModal";
 import { GuidedTour, type TourStep } from "@/components/ui/GuidedTour";
-import { HelpCircle, Smartphone } from "lucide-react";
+import { HelpCircle, Smartphone, ArrowRight, X } from "lucide-react";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -40,7 +41,44 @@ function Home() {
   const [creationCode, setCreationCode] = useState("");
   const [count, setCount] = useState(1);
   const [busy, setBusy] = useState(false);
+  const [activeSession, setActiveSession] = useState<any>(null);
   const { isInstallable, isStandalone, install } = usePWAInstall();
+
+  useEffect(() => {
+    const checkActiveSession = async () => {
+      const session = loadSession();
+      if (!session) return;
+
+      // Verificar si la sala y el jugador aún existen y son válidos
+      try {
+        const { data: room } = await supabase
+          .from("rooms")
+          .select("id, status")
+          .eq("code", session.roomCode.toUpperCase())
+          .maybeSingle();
+
+        if (room && room.status !== "FINISHED") {
+          const { data: player } = await supabase
+            .from("players")
+            .select("id")
+            .eq("id", session.playerId)
+            .maybeSingle();
+
+          if (player) {
+            setActiveSession(session);
+          } else {
+            clearSession(session.roomCode);
+          }
+        } else {
+          clearSession(session.roomCode);
+        }
+      } catch (e) {
+        console.error("Error verificando sesión:", e);
+      }
+    };
+
+    void checkActiveSession();
+  }, []);
 
   const homeTourSteps: TourStep[] = [
     {
@@ -160,6 +198,37 @@ function Home() {
             </div>
             <Button size="sm" className="h-8 px-3 text-[10px] font-bold" onClick={install}>
               INSTALAR
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {activeSession && (
+        <section className="panel p-5 bg-green-500/10 border-green-500/30 animate-in zoom-in duration-500">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <h3 className="font-display text-xl text-green-500 leading-none">¡TIENES UNA PARTIDA ACTIVA!</h3>
+                <p className="text-xs text-muted-foreground">Estás registrado como <span className="text-foreground font-bold">{activeSession.name}</span> en la sala <span className="text-foreground font-bold">{activeSession.roomCode}</span>.</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 hover:bg-green-500/20"
+                onClick={() => {
+                  clearSession(activeSession.roomCode);
+                  setActiveSession(null);
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button
+              className="h-12 w-full bg-green-600 hover:bg-green-700 text-white font-bold gap-2"
+              onClick={() => navigate({ to: "/sala/$code", params: { code: activeSession.roomCode } })}
+            >
+              REGRESAR AL JUEGO
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         </section>

@@ -1,29 +1,46 @@
-# Plan: Creación de Entorno de Laboratorio (Bingo Pals Lab)
+# Plan: Continuidad de Partida, Recuperación de Sesión y Memoria de Cartones
 
-Este plan establece un entorno de desarrollo aislado en la carpeta `D:/bingo-pals-lab` para desarrollar y probar la función de Chat de Voz sin poner en riesgo la versión de producción.
+Este plan resuelve los problemas de persistencia del estado entre partidas, añade la capacidad de recuperar una partida en curso y asegura que los jugadores conserven sus cartones al pasar a una nueva ronda.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Proyecto Independiente:** Necesitarás crear un **nuevo proyecto en Supabase** (ej: "Bingo-Pals-Lab") para evitar mezclar datos.
-> - **Configuración .env:** Tendrás que actualizar las claves de Supabase (`URL` y `ANON_KEY`) en el archivo `.env` de la carpeta de laboratorio.
-> - **Cloudflare:** Si decides subirlo a la nube para probar con amigos, usaremos un nombre de worker diferente (ej: `bingo-pals-lab`).
+> - **Reseteo de Estado:** Al iniciar una nueva partida, todos los jugadores volverán a "No Listo".
+> - **Memoria de Cartones:** El sistema copiará automáticamente tus cartones de la partida anterior a la nueva. Podrás verlos en la sala de espera y decidir si quedártelos o cambiarlos.
+> - **Persistencia de Sesión:** Cambiaremos a `localStorage` para que el celular te recuerde siempre.
+> - **Recuperación:** La pantalla de inicio te permitirá volver a tu partida activa con un solo clic.
 
 ## Pasos Propuestos
 
-### 1. Duplicación Local
-- Ejecutar un comando de copia recursiva para duplicar todos los archivos de `D:/bingo-pals` a `D:/bingo-pals-lab`, excluyendo carpetas pesadas como `node_modules` y `.git`.
+### 1. Mejorar el inicio de "Nueva Partida"
 
-### 2. Aislamiento de Configuración
-- Limpiar el archivo `wrangler.toml` en el laboratorio para que apunte a un nuevo entorno.
-- Resetear la vinculación de Supabase local (`supabase/.temp`) para que pida un nuevo `link`.
+#### [MODIFY] [rooms.functions.ts](file:///D:/bingo-pals/src/lib/rooms.functions.ts)
+- **`newGame`**:
+  1. Poner `is_ready = false` a todos los jugadores de la sala.
+  2. Identificar los cartones que cada jugador tenía en la partida que acaba de terminar.
+  3. Insertar esos mismos cartones (mismos números) en la nueva partida automáticamente.
+  4. Esto permitirá que la sala de espera ya muestre los cartones previos del jugador.
 
-### 3. Preparación del Chat de Voz
-- Una vez creado el laboratorio, reiniciaremos la implementación del chat de voz paso a paso, basándonos en los aprendizajes anteriores para evitar el error "Try again".
+### 2. Identidad Permanente
+
+#### [MODIFY] [session.ts](file:///D:/bingo-pals/src/lib/session.ts)
+- Cambiar el uso de `sessionStorage` a `localStorage` de forma definitiva.
+
+### 3. Interfaz de Recuperación
+
+#### [MODIFY] [index.tsx](file:///D:/bingo-pals/src/routes/index.tsx)
+- Al cargar la página principal, buscar si hay una sesión guardada.
+- Si existe, verificar en la base de datos si la sala sigue activa.
+- Mostrar un banner o botón destacado: `"Tienes una partida activa en la sala [CODIGO]. [BOTÓN: VOLVER A JUGAR]"`.
 
 ## Plan de Verificación
 
-1.  Verificar que `D:/bingo-pals-lab` existe y tiene los archivos correctos.
-2.  Instalar dependencias en la nueva carpeta.
-3.  Vincular al nuevo Supabase de pruebas.
-4.  Lanzar el proyecto localmente (`npm run dev`) y confirmar que funciona independientemente del original.
+### Pruebas de Memoria
+1. Jugar una partida con cartones específicos.
+2. Finalizar la partida y dar a "Continuar".
+3. Verificar que en la sala de espera **ya tienes tus cartones anteriores** y que apareces como "**No Listo**".
+
+### Pruebas de Cierre
+1. Estar en una sala y cerrar la pestaña.
+2. Abrir el Bingo de nuevo.
+3. Verificar que aparece la opción de volver a entrar y que al hacerlo mantienes tu nombre y posición.

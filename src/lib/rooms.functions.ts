@@ -602,13 +602,38 @@ export const newGame = createServerFn({ method: "POST" })
         room_id: host.room_id,
         status: "WAITING",
         game_number: (last?.game_number ?? 0) + 1,
+        prize: 10,
+        winning_pattern: 'FULL',
+        ball_interval: 4
       })
       .select("id")
       .single();
     if (error || !game) throw new Error("No se pudo crear la nueva partida");
 
+    // 1. Inicializar pool de cartones nuevos
     const { initializeCardPool } = await import("@/lib/game.server");
     await initializeCardPool(game.id);
+
+    // 2. Herencia de Cartones: Copiar los cartones que tenían los jugadores en la partida anterior
+    if (last) {
+      const { data: oldCards } = await db
+        .from("cards")
+        .select("player_id, card_number, numbers")
+        .eq("game_id", last.id);
+
+      if (oldCards && oldCards.length > 0) {
+        const newCards = oldCards.map(c => ({
+          game_id: game.id,
+          player_id: c.player_id,
+          card_number: c.card_number,
+          numbers: c.numbers
+        }));
+        await db.from("cards").insert(newCards);
+      }
+    }
+
+    // 3. Resetear estado "Listo" de todos los jugadores
+    await db.from("players").update({ is_ready: false }).eq("room_id", host.room_id);
 
     await db
       .from("rooms")
